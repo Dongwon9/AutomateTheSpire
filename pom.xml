@@ -3,7 +3,7 @@
 
     <properties>
         <modID>BasicMod</modID>
-        <author>Me!</author>
+        <author>Me! (Or well, you. If you want to use \"quotes\" make sure you have slashes in front of them like this.)</author>
 
         <!-- Change the path for your system to match your Steam installation. -->
         <steam.windows>C:/Program Files (x86)/steam/steamapps</steam.windows>
