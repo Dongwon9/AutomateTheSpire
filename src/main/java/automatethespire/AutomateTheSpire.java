@@ -45,6 +45,8 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
         loadModInfo();
     }
 
+    private AbstractRoom currRoom;
+
     private float cooldownLeft = 0f;
     private boolean turnFullyBegun = false;
 
@@ -160,10 +162,9 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
     }
 
     private static void PressEventButton() {
-        if ((AbstractDungeon.getCurrRoom() instanceof EventRoom
-             || AbstractDungeon.getCurrRoom() instanceof NeowRoom) &&
-            AbstractDungeon.screen ==
-            AbstractDungeon.CurrentScreen.NONE) {
+        if ((AbstractDungeon.getCurrRoom() instanceof EventRoom || AbstractDungeon.getCurrRoom() instanceof NeowRoom ||
+             AbstractDungeon.getCurrRoom() instanceof VictoryRoom) &&
+            AbstractDungeon.screen == AbstractDungeon.CurrentScreen.NONE) {
             ArrayList<LargeDialogOptionButton> activeButtons = EventScreenUtils.getActiveEventButtons();
             if (activeButtons.size() == 1) {
                 activeButtons.get(0).pressed = true;
@@ -171,12 +172,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
         }
     }
 
-    public void setTurnFullyBegun(boolean value) {
-        if (turnFullyBegun != value) {
-            logger.info("TurnFullyBegun: " + value);
-            turnFullyBegun = value;
-        }
-    }
+
 
     private void loadLocalization(String lang) {
         //While this does load every type of localization, most of these files are just outlines so that you can see
@@ -197,6 +193,10 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
         cooldownLeft -= Gdx.graphics.getDeltaTime();
         if (cooldownLeft > 0 || !CardCrawlGame.isInARun() || !AbstractDungeon.isPlayerInDungeon()) {
             return;
+        }try{
+            currRoom = AbstractDungeon.getCurrRoom();
+        }catch (Exception e){
+            return;
         }
         cooldownLeft = cooldown;
         PressEventButton();
@@ -207,51 +207,51 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
     }
 
     private void PressProceed() {
-        if (!(AbstractDungeon.getCurrRoom() instanceof TreasureRoomBoss) &&
-            !(AbstractDungeon.getCurrRoom() instanceof RestRoom)) {
-            return;
+        if (currRoom instanceof TreasureRoomBoss ||
+            currRoom instanceof RestRoom ||
+            (AbstractDungeon.id.equals("TheEnding") || AbstractDungeon.id.equals("TheBeyond")) &&
+            currRoom instanceof MonsterRoomBoss) {
+            if (currRoom instanceof TreasureRoomBoss &&
+                !((TreasureRoomBoss) currRoom).chest.isOpen) {
+                return;
+            }
+            if (currRoom instanceof RestRoom && !CampfireUI.hidden) {
+                return;
+            }
+            if (!(boolean) ReflectionHacks.getPrivate(AbstractDungeon.overlayMenu.proceedButton, ProceedButton.class,
+                    "isHidden")) {
+                Hitbox hb = ReflectionHacks.getPrivate(AbstractDungeon.overlayMenu.proceedButton, ProceedButton.class
+                        , "hb");
+                hb.clicked = true;
+            }
         }
-        if (AbstractDungeon.getCurrRoom() instanceof TreasureRoomBoss &&
-            !((TreasureRoomBoss) AbstractDungeon.getCurrRoom()).chest.isOpen) {
-            return;
-        }
-        if (AbstractDungeon.getCurrRoom() instanceof RestRoom && !CampfireUI.hidden) {
-            return;
-        }
-        if (!(boolean)ReflectionHacks.getPrivate(AbstractDungeon.overlayMenu.proceedButton, ProceedButton.class, "isHidden")) {
-            Hitbox hb = ReflectionHacks.getPrivate(AbstractDungeon.overlayMenu.proceedButton, ProceedButton.class,
-                    "hb");
-            hb.clicked = true;
-        }
-
-
     }
 
 
     private void PressEndTurn() {
         if (turnFullyBegun && AbstractDungeon.actionManager.phase == GameActionManager.Phase.WAITING_ON_USER &&
-            AbstractDungeon.getCurrRoom().phase == AbstractRoom.RoomPhase.COMBAT &&
+            currRoom.phase == AbstractRoom.RoomPhase.COMBAT &&
             !AbstractDungeon.actionManager.turnHasEnded && AbstractDungeon.actionManager.actions.isEmpty() &&
             !AbstractDungeon.player.hand.canUseAnyCard() && !AbstractDungeon.player.hasAnyPotions()) {
             AbstractDungeon.actionManager.addToBottom(new PressEndTurnButtonAction());
             logger.info("Ended turn!");
-            setTurnFullyBegun(false);
+            turnFullyBegun = false;
         }
     }
 
     @Override
     public void receiveOnPlayerTurnStartPostDraw() {
-        setTurnFullyBegun(true);
+        turnFullyBegun = true;
     }
 
     @Override
     public void receivePostBattle(AbstractRoom abstractRoom) {
-        setTurnFullyBegun(false);
+        turnFullyBegun = false;
     }
 
     @Override
     public void receivePostDeath() {
-        setTurnFullyBegun(false);
+        turnFullyBegun = false;
     }
 
 
