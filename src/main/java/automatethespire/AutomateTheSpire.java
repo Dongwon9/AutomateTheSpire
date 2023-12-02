@@ -3,10 +3,7 @@ package automatethespire;
 import automatethespire.patches.DungeonMapPatch;
 import automatethespire.patches.MapRoomNodeHoverPatch;
 import basemod.BaseMod;
-import basemod.interfaces.OnPlayerTurnStartPostDrawSubscriber;
-import basemod.interfaces.PostBattleSubscriber;
-import basemod.interfaces.PostDeathSubscriber;
-import basemod.interfaces.PostUpdateSubscriber;
+import basemod.interfaces.*;
 import com.badlogic.gdx.Gdx;
 import com.evacipated.cardcrawl.modthespire.Loader;
 import com.evacipated.cardcrawl.modthespire.ModInfo;
@@ -17,27 +14,28 @@ import com.megacrit.cardcrawl.actions.watcher.PressEndTurnButtonAction;
 import com.megacrit.cardcrawl.core.CardCrawlGame;
 import com.megacrit.cardcrawl.core.Settings;
 import com.megacrit.cardcrawl.dungeons.AbstractDungeon;
+import com.megacrit.cardcrawl.events.AbstractEvent;
 import com.megacrit.cardcrawl.localization.*;
 import com.megacrit.cardcrawl.map.MapRoomNode;
-import com.megacrit.cardcrawl.potions.AbstractPotion;
+import com.megacrit.cardcrawl.neow.NeowRoom;
 import com.megacrit.cardcrawl.rewards.RewardItem;
 import com.megacrit.cardcrawl.rooms.AbstractRoom;
+import com.megacrit.cardcrawl.rooms.EventRoom;
+import com.megacrit.cardcrawl.rooms.MonsterRoomBoss;
 import com.megacrit.cardcrawl.rooms.TreasureRoom;
+import com.megacrit.cardcrawl.ui.buttons.LargeDialogOptionButton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.scannotation.AnnotationDB;
 
 import java.util.*;
 
-import static com.megacrit.cardcrawl.dungeons.AbstractDungeon.*;
-
 @SpireInitializer
-public class AutomateTheSpire implements PostUpdateSubscriber,
-        OnPlayerTurnStartPostDrawSubscriber,
-        PostBattleSubscriber,
-        PostDeathSubscriber {
+public class AutomateTheSpire implements
+                              PostUpdateSubscriber, OnPlayerTurnStartPostDrawSubscriber,
+                              PostBattleSubscriber, PostDeathSubscriber {
+    public static final float cooldown = 0.2f;
     private static final String resourcesFolder = "automatethespire";
-    private static final String defaultLanguage = "eng";
     public static ModInfo info;
     public static String modID; //Edit your pom.xml to change this
     public static final Logger logger = LogManager.getLogger(modID); //Used to output to the console.
@@ -45,9 +43,8 @@ public class AutomateTheSpire implements PostUpdateSubscriber,
     static {
         loadModInfo();
     }
-    public static final float cooldown = 0.1f;
+
     private float cooldownLeft = 0f;
-    boolean mapviewing = false;
     private boolean turnFullyBegun = false;
 
     public AutomateTheSpire() {
@@ -55,13 +52,13 @@ public class AutomateTheSpire implements PostUpdateSubscriber,
         logger.info(modID + " subscribed to BaseMod.");
     }
 
+    /*----------Localization----------*/
+
     //This is used to prefix the IDs of various objects like cards and relics,
     //to avoid conflicts between different mods using the same name for things.
     public static String makeID(String id) {
         return modID + ":" + id;
     }
-
-    /*----------Localization----------*/
 
     //This will be called by ModTheSpire because of the @SpireInitializer annotation at the top of the class.
     public static void initialize() {
@@ -82,8 +79,12 @@ public class AutomateTheSpire implements PostUpdateSubscriber,
     private static void loadModInfo() {
         Optional<ModInfo> infos = Arrays.stream(Loader.MODINFOS).filter((modInfo) -> {
             AnnotationDB annotationDB = Patcher.annotationDBMap.get(modInfo.jarURL);
-            if (annotationDB == null) return false;
-            Set<String> initializers = annotationDB.getAnnotationIndex().getOrDefault(SpireInitializer.class.getName(), Collections.emptySet());
+            if (annotationDB == null) {
+                return false;
+            }
+            Set<String> initializers =
+                    annotationDB.getAnnotationIndex().getOrDefault(SpireInitializer.class.getName(),
+                            Collections.emptySet());
             return initializers.contains(AutomateTheSpire.class.getName());
         }).findFirst();
         if (infos.isPresent()) {
@@ -100,8 +101,9 @@ public class AutomateTheSpire implements PostUpdateSubscriber,
         ArrayList<ArrayList<MapRoomNode>> map = AbstractDungeon.map;
         if (!AbstractDungeon.firstRoomChosen) {
             for (MapRoomNode node : map.get(0)) {
-                if (node.hasEdges())
+                if (node.hasEdges()) {
                     choices.add(node);
+                }
             }
             return choices;
         }
@@ -112,8 +114,9 @@ public class AutomateTheSpire implements PostUpdateSubscriber,
                 }
                 boolean normalConnection = currMapNode.isConnectedTo(node);
                 boolean wingedConnection = currMapNode.wingedIsConnectedTo(node);
-                if (normalConnection || wingedConnection)
+                if (normalConnection || wingedConnection) {
                     choices.add(node);
+                }
             }
         }
         return choices;
@@ -127,7 +130,8 @@ public class AutomateTheSpire implements PostUpdateSubscriber,
     }
 
     private void loadLocalization(String lang) {
-        //While this does load every type of localization, most of these files are just outlines so that you can see how they're formatted.
+        //While this does load every type of localization, most of these files are just outlines so that you can see
+        // how they're formatted.
         //Feel free to comment out/delete any that you don't end up using.
         BaseMod.loadCustomStringsFile(CardStrings.class, localizationPath(lang, "CardStrings.json"));
         BaseMod.loadCustomStringsFile(CharacterStrings.class, localizationPath(lang, "CharacterStrings.json"));
@@ -142,48 +146,41 @@ public class AutomateTheSpire implements PostUpdateSubscriber,
     @Override
     public void receivePostUpdate() {
         cooldownLeft -= Gdx.graphics.getDeltaTime();
-        if(cooldownLeft > 0) return;
-        cooldownLeft = cooldown;
-        if (!CardCrawlGame.isInARun() || !AbstractDungeon.firstRoomChosen) {
+        if (cooldownLeft >0 || !CardCrawlGame.isInARun() || !AbstractDungeon.isPlayerInDungeon()) {
             return;
         }
-//        logger.info("canUseCard: "+ AbstractDungeon.player.hand.canUseAnyCard());
-//        logger.info("PotionEmpty: "+ AbstractDungeon.player.potions.isEmpty());
-        if (turnFullyBegun &&
-                actionManager.phase == GameActionManager.Phase.WAITING_ON_USER &&
-                AbstractDungeon.isPlayerInDungeon() &&
-//                AbstractDungeon.getCurrRoom().phase == AbstractRoom.RoomPhase.COMBAT &&
-                !actionManager.turnHasEnded &&
-                actionManager.actions.isEmpty() &&
-                !player.hand.canUseAnyCard() &&
-                hasNoNonFairyPotion()) {
-            actionManager.addToBottom(new PressEndTurnButtonAction());
-            logger.info("Ended turn!");
-            setTurnFullyBegun(false);
-        }
-//        if(AbstractDungeon.getCurrRoom().phase == AbstractRoom.RoomPhase.COMPLETE){
-//            logger.info("An event ended.");
-//        }
-        if(screen == CurrentScreen.COMBAT_REWARD){
-            for(RewardItem reward : AbstractDungeon.combatRewardScreen.rewards){
-                if(reward.type != RewardItem.RewardType.CARD &&
-                !(reward.type == RewardItem.RewardType.RELIC &&
-                        getCurrRoom().getClass() == TreasureRoom.class &&
-                        Settings.isFinalActAvailable && !Settings.hasSapphireKey
-                )&& reward.type != RewardItem.RewardType.SAPPHIRE_KEY
-                ){
+        cooldownLeft = cooldown;
+        PressEventButton();
+        PressEndTurn();
+        PressMapNode();
+        TakeCombatReward();
+
+    }
+
+    private static void TakeCombatReward() {
+        if (AbstractDungeon.screen == AbstractDungeon.CurrentScreen.COMBAT_REWARD) {
+            for (RewardItem reward : AbstractDungeon.combatRewardScreen.rewards) {
+                if (reward.type != RewardItem.RewardType.CARD &&
+                    !(reward.type == RewardItem.RewardType.RELIC &&
+                      AbstractDungeon.getCurrRoom().getClass() == TreasureRoom.class &&
+                      Settings.isFinalActAvailable && !Settings.hasSapphireKey
+                    ) && reward.type != RewardItem.RewardType.SAPPHIRE_KEY) {
+                    logger.info("Taking Reward : " + reward.type);
                     reward.isDone = true;
                 }
-
             }
-            if(combatRewardScreen.hasTakenAll){
+            if (AbstractDungeon.combatRewardScreen.hasTakenAll &&
+                !(AbstractDungeon.getCurrRoom() instanceof MonsterRoomBoss)) {
                 AbstractDungeon.dungeonMapScreen.open(false);
             }
         }
+    }
+
+    private static void PressMapNode() {
         if (AbstractDungeon.screen == AbstractDungeon.CurrentScreen.MAP) {
-            if (currMapNode.y == 14 || (AbstractDungeon.id.equals("TheEnding") && currMapNode.y == 2)) {
+            if (AbstractDungeon.currMapNode.y == 14 ||
+                (AbstractDungeon.id.equals("TheEnding") && AbstractDungeon.currMapNode.y == 2)) {
                 DungeonMapPatch.doBossHover = true;
-                return;
             }
             ArrayList<MapRoomNode> choices = getMapScreenNodeChoices();
             if (choices.size() == 1) {
@@ -194,24 +191,31 @@ public class AutomateTheSpire implements PostUpdateSubscriber,
         }
     }
 
-    public boolean hasNoNonFairyPotion() {
-        Iterator<AbstractPotion> var2 = player.potions.iterator();
-        AbstractPotion p;
-        do {
-            if (!var2.hasNext()) {
-                return false;
+    private static void PressEventButton() {
+        if (AbstractDungeon.getCurrRoom() instanceof EventRoom || AbstractDungeon.getCurrRoom() instanceof NeowRoom) {
+            ArrayList<LargeDialogOptionButton> activeButtons = EventScreenUtils.getActiveEventButtons();
+            if (activeButtons.size() == 1) {
+                activeButtons.get(0).pressed = true;
             }
-            p = var2.next();
-        } while (!p.ID.equals("FairyPotion") && !p.ID.equals("Potion Slot"));
+        }
+    }
 
-        return true;
+    private void PressEndTurn() {
+        if (turnFullyBegun && AbstractDungeon.actionManager.phase == GameActionManager.Phase.WAITING_ON_USER &&
+            AbstractDungeon.getCurrRoom().phase == AbstractRoom.RoomPhase.COMBAT &&
+            !AbstractDungeon.actionManager.turnHasEnded && AbstractDungeon.actionManager.actions.isEmpty() &&
+            !AbstractDungeon.player.hand.canUseAnyCard() && !AbstractDungeon.player.hasAnyPotions()
+        ) {
+            AbstractDungeon.actionManager.addToBottom(new PressEndTurnButtonAction());
+            logger.info("Ended turn!");
+            setTurnFullyBegun(false);
+        }
     }
 
     @Override
     public void receiveOnPlayerTurnStartPostDraw() {
         setTurnFullyBegun(true);
     }
-
 
     @Override
     public void receivePostBattle(AbstractRoom abstractRoom) {
@@ -222,4 +226,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber,
     public void receivePostDeath() {
         setTurnFullyBegun(false);
     }
+
+
+
 }
