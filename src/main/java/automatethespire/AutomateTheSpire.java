@@ -3,7 +3,11 @@ package automatethespire;
 import automatethespire.patches.DungeonMapPatch;
 import automatethespire.patches.MapRoomNodeHoverPatch;
 import basemod.BaseMod;
-import basemod.interfaces.*;
+import basemod.ReflectionHacks;
+import basemod.interfaces.OnPlayerTurnStartPostDrawSubscriber;
+import basemod.interfaces.PostBattleSubscriber;
+import basemod.interfaces.PostDeathSubscriber;
+import basemod.interfaces.PostUpdateSubscriber;
 import com.badlogic.gdx.Gdx;
 import com.evacipated.cardcrawl.modthespire.Loader;
 import com.evacipated.cardcrawl.modthespire.ModInfo;
@@ -14,16 +18,14 @@ import com.megacrit.cardcrawl.actions.watcher.PressEndTurnButtonAction;
 import com.megacrit.cardcrawl.core.CardCrawlGame;
 import com.megacrit.cardcrawl.core.Settings;
 import com.megacrit.cardcrawl.dungeons.AbstractDungeon;
-import com.megacrit.cardcrawl.events.AbstractEvent;
+import com.megacrit.cardcrawl.helpers.Hitbox;
 import com.megacrit.cardcrawl.localization.*;
 import com.megacrit.cardcrawl.map.MapRoomNode;
 import com.megacrit.cardcrawl.neow.NeowRoom;
 import com.megacrit.cardcrawl.rewards.RewardItem;
-import com.megacrit.cardcrawl.rooms.AbstractRoom;
-import com.megacrit.cardcrawl.rooms.EventRoom;
-import com.megacrit.cardcrawl.rooms.MonsterRoomBoss;
-import com.megacrit.cardcrawl.rooms.TreasureRoom;
+import com.megacrit.cardcrawl.rooms.*;
 import com.megacrit.cardcrawl.ui.buttons.LargeDialogOptionButton;
+import com.megacrit.cardcrawl.ui.buttons.ProceedButton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.scannotation.AnnotationDB;
@@ -31,9 +33,8 @@ import org.scannotation.AnnotationDB;
 import java.util.*;
 
 @SpireInitializer
-public class AutomateTheSpire implements
-                              PostUpdateSubscriber, OnPlayerTurnStartPostDrawSubscriber,
-                              PostBattleSubscriber, PostDeathSubscriber {
+public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStartPostDrawSubscriber,
+                                         PostBattleSubscriber, PostDeathSubscriber {
     public static final float cooldown = 0.2f;
     private static final String resourcesFolder = "automatethespire";
     public static ModInfo info;
@@ -122,6 +123,54 @@ public class AutomateTheSpire implements
         return choices;
     }
 
+    private static void TakeCombatReward() {
+        if (AbstractDungeon.screen != AbstractDungeon.CurrentScreen.COMBAT_REWARD) {
+            return;
+        }
+        for (RewardItem reward : AbstractDungeon.combatRewardScreen.rewards) {
+            if (reward.type != RewardItem.RewardType.CARD && !(reward.type == RewardItem.RewardType.RELIC &&
+                                                               AbstractDungeon.getCurrRoom().getClass() ==
+                                                               TreasureRoom.class && Settings.isFinalActAvailable &&
+                                                               !Settings.hasSapphireKey) &&
+                reward.type != RewardItem.RewardType.SAPPHIRE_KEY) {
+                logger.info("Taking Reward : " + reward.type);
+                reward.isDone = true;
+            }
+        }
+        if (AbstractDungeon.combatRewardScreen.hasTakenAll &&
+            !(AbstractDungeon.getCurrRoom() instanceof MonsterRoomBoss)) {
+            AbstractDungeon.dungeonMapScreen.open(false);
+        }
+    }
+
+    private static void PressMapNode() {
+        if (AbstractDungeon.screen == AbstractDungeon.CurrentScreen.MAP) {
+            if (AbstractDungeon.currMapNode.y == 14 ||
+                (AbstractDungeon.id.equals("TheEnding") && AbstractDungeon.currMapNode.y == 2)) {
+                DungeonMapPatch.doBossHover = true;
+            }
+            ArrayList<MapRoomNode> choices = getMapScreenNodeChoices();
+            if (choices.size() == 1) {
+                MapRoomNodeHoverPatch.hoverNode = choices.get(0);
+                MapRoomNodeHoverPatch.doHover = true;
+                AbstractDungeon.dungeonMapScreen.clicked = true;
+
+            }
+        }
+    }
+
+    private static void PressEventButton() {
+        if ((AbstractDungeon.getCurrRoom() instanceof EventRoom
+             || AbstractDungeon.getCurrRoom() instanceof NeowRoom) &&
+            AbstractDungeon.screen ==
+            AbstractDungeon.CurrentScreen.NONE) {
+            ArrayList<LargeDialogOptionButton> activeButtons = EventScreenUtils.getActiveEventButtons();
+            if (activeButtons.size() == 1) {
+                activeButtons.get(0).pressed = true;
+            }
+        }
+    }
+
     public void setTurnFullyBegun(boolean value) {
         if (turnFullyBegun != value) {
             logger.info("TurnFullyBegun: " + value);
@@ -146,7 +195,7 @@ public class AutomateTheSpire implements
     @Override
     public void receivePostUpdate() {
         cooldownLeft -= Gdx.graphics.getDeltaTime();
-        if (cooldownLeft >0 || !CardCrawlGame.isInARun() || !AbstractDungeon.isPlayerInDungeon()) {
+        if (cooldownLeft > 0 || !CardCrawlGame.isInARun() || !AbstractDungeon.isPlayerInDungeon()) {
             return;
         }
         cooldownLeft = cooldown;
@@ -154,58 +203,36 @@ public class AutomateTheSpire implements
         PressEndTurn();
         PressMapNode();
         TakeCombatReward();
-
+        PressProceed();
     }
 
-    private static void TakeCombatReward() {
-        if (AbstractDungeon.screen == AbstractDungeon.CurrentScreen.COMBAT_REWARD) {
-            for (RewardItem reward : AbstractDungeon.combatRewardScreen.rewards) {
-                if (reward.type != RewardItem.RewardType.CARD &&
-                    !(reward.type == RewardItem.RewardType.RELIC &&
-                      AbstractDungeon.getCurrRoom().getClass() == TreasureRoom.class &&
-                      Settings.isFinalActAvailable && !Settings.hasSapphireKey
-                    ) && reward.type != RewardItem.RewardType.SAPPHIRE_KEY) {
-                    logger.info("Taking Reward : " + reward.type);
-                    reward.isDone = true;
-                }
-            }
-            if (AbstractDungeon.combatRewardScreen.hasTakenAll &&
-                !(AbstractDungeon.getCurrRoom() instanceof MonsterRoomBoss)) {
-                AbstractDungeon.dungeonMapScreen.open(false);
-            }
+    private void PressProceed() {
+        if (!(AbstractDungeon.getCurrRoom() instanceof TreasureRoomBoss) &&
+            !(AbstractDungeon.getCurrRoom() instanceof RestRoom)) {
+            return;
         }
+        if (AbstractDungeon.getCurrRoom() instanceof TreasureRoomBoss &&
+            !((TreasureRoomBoss) AbstractDungeon.getCurrRoom()).chest.isOpen) {
+            return;
+        }
+        if (AbstractDungeon.getCurrRoom() instanceof RestRoom && !CampfireUI.hidden) {
+            return;
+        }
+        if (!(boolean)ReflectionHacks.getPrivate(AbstractDungeon.overlayMenu.proceedButton, ProceedButton.class, "isHidden")) {
+            Hitbox hb = ReflectionHacks.getPrivate(AbstractDungeon.overlayMenu.proceedButton, ProceedButton.class,
+                    "hb");
+            hb.clicked = true;
+        }
+
+
     }
 
-    private static void PressMapNode() {
-        if (AbstractDungeon.screen == AbstractDungeon.CurrentScreen.MAP) {
-            if (AbstractDungeon.currMapNode.y == 14 ||
-                (AbstractDungeon.id.equals("TheEnding") && AbstractDungeon.currMapNode.y == 2)) {
-                DungeonMapPatch.doBossHover = true;
-            }
-            ArrayList<MapRoomNode> choices = getMapScreenNodeChoices();
-            if (choices.size() == 1) {
-                MapRoomNodeHoverPatch.hoverNode = choices.get(0);
-                MapRoomNodeHoverPatch.doHover = true;
-                AbstractDungeon.dungeonMapScreen.clicked = true;
-            }
-        }
-    }
-
-    private static void PressEventButton() {
-        if (AbstractDungeon.getCurrRoom() instanceof EventRoom || AbstractDungeon.getCurrRoom() instanceof NeowRoom) {
-            ArrayList<LargeDialogOptionButton> activeButtons = EventScreenUtils.getActiveEventButtons();
-            if (activeButtons.size() == 1) {
-                activeButtons.get(0).pressed = true;
-            }
-        }
-    }
 
     private void PressEndTurn() {
         if (turnFullyBegun && AbstractDungeon.actionManager.phase == GameActionManager.Phase.WAITING_ON_USER &&
             AbstractDungeon.getCurrRoom().phase == AbstractRoom.RoomPhase.COMBAT &&
             !AbstractDungeon.actionManager.turnHasEnded && AbstractDungeon.actionManager.actions.isEmpty() &&
-            !AbstractDungeon.player.hand.canUseAnyCard() && !AbstractDungeon.player.hasAnyPotions()
-        ) {
+            !AbstractDungeon.player.hand.canUseAnyCard() && !AbstractDungeon.player.hasAnyPotions()) {
             AbstractDungeon.actionManager.addToBottom(new PressEndTurnButtonAction());
             logger.info("Ended turn!");
             setTurnFullyBegun(false);
@@ -226,7 +253,6 @@ public class AutomateTheSpire implements
     public void receivePostDeath() {
         setTurnFullyBegun(false);
     }
-
 
 
 }
