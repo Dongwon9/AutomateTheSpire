@@ -3,22 +3,24 @@ package automatethespire;
 import automatethespire.patches.DungeonMapPatch;
 import automatethespire.patches.MapRoomNodeHoverPatch;
 import basemod.BaseMod;
+import basemod.ModLabeledToggleButton;
+import basemod.ModPanel;
 import basemod.ReflectionHacks;
-import basemod.interfaces.OnPlayerTurnStartPostDrawSubscriber;
-import basemod.interfaces.PostBattleSubscriber;
-import basemod.interfaces.PostDeathSubscriber;
-import basemod.interfaces.PostUpdateSubscriber;
+import basemod.interfaces.*;
 import com.badlogic.gdx.Gdx;
 import com.evacipated.cardcrawl.modthespire.Loader;
 import com.evacipated.cardcrawl.modthespire.ModInfo;
 import com.evacipated.cardcrawl.modthespire.Patcher;
+import com.evacipated.cardcrawl.modthespire.lib.SpireConfig;
 import com.evacipated.cardcrawl.modthespire.lib.SpireInitializer;
 import com.megacrit.cardcrawl.actions.GameActionManager;
 import com.megacrit.cardcrawl.actions.watcher.PressEndTurnButtonAction;
 import com.megacrit.cardcrawl.core.CardCrawlGame;
 import com.megacrit.cardcrawl.core.Settings;
 import com.megacrit.cardcrawl.dungeons.AbstractDungeon;
+import com.megacrit.cardcrawl.helpers.FontHelper;
 import com.megacrit.cardcrawl.helpers.Hitbox;
+import com.megacrit.cardcrawl.helpers.ImageMaster;
 import com.megacrit.cardcrawl.map.MapRoomNode;
 import com.megacrit.cardcrawl.neow.NeowRoom;
 import com.megacrit.cardcrawl.rewards.RewardItem;
@@ -30,17 +32,25 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.scannotation.AnnotationDB;
 
+import java.io.IOException;
 import java.util.*;
 
 @SpireInitializer
 public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStartPostDrawSubscriber,
-                                         PostBattleSubscriber, PostDeathSubscriber {
+                                         PostBattleSubscriber, PostDeathSubscriber, PostInitializeSubscriber {
     public static final float cooldown = 0f;
+    public static final String AutoEndTurn = "AutoEndTurn";
+    public static final String AutoOpenChest = "AutoOpenChest";
+    public static final String AutoClickMapNode = "AutoClickMapNode";
+    public static final String AutoTakeRewards = "AutoTakeRewards";
+    public static final String EvenIfRewardLeft = "EvenIfRewardLeft";
+    public static final String AutoClickEvent = "AutoClickEvent";
+    public static final String AutoClickProceed = "AutoClickProceed";
     private static final String resourcesFolder = "automatethespire";
     private static final float eventButtonDelay = 0.1f;
     public static ModInfo info;
     public static String modID; //Edit your pom.xml to change this
-    public static final Logger logger = LogManager.getLogger(modID); //Used to output to the console.
+    public static final Logger logger = LogManager.getLogger(modID);
 
     static {
         loadModInfo();
@@ -54,18 +64,27 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
     /*----------Localization----------*/
     private boolean mapNodePressed = false;
     private float eventButtonDelayLeft = 0.1f;
-    //This will be called by ModTheSpire because of the @SpireInitializer annotation at the top of the class.
     private AbstractRoom.RoomPhase prevPhase;
-    //This is used to load the appropriate localization files based on language.
     private Class<? extends AbstractRoom> prevRoom;
-    //These methods are used to generate the correct filepaths to various parts of the resources folder.
     private AbstractDungeon.CurrentScreen prevScreen;
-    //This determines the mod's ID based on information stored by ModTheSpire.
     private GameActionManager.Phase prevActionPhase;
-
+    private SpireConfig modConfig;
     public AutomateTheSpire() {
         BaseMod.subscribe(this); //This will make BaseMod trigger all the subscribers at their appropriate times.
         logger.info(modID + " subscribed to BaseMod.");
+        try {
+            Properties defaults = new Properties();
+            defaults.put(AutoEndTurn, Boolean.toString(true));
+            defaults.put(AutoOpenChest, Boolean.toString(true));
+            defaults.put(AutoClickMapNode, Boolean.toString(true));
+            defaults.put(AutoTakeRewards, Boolean.toString(true));
+            defaults.put(EvenIfRewardLeft, Boolean.toString(true));
+            defaults.put(AutoClickEvent, Boolean.toString(true));
+            defaults.put(AutoClickProceed, Boolean.toString(true));
+            modConfig = new SpireConfig("AutomateTheSpire", "Config", defaults);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     public static String makeID(String id) {
@@ -90,9 +109,8 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
             if (annotationDB == null) {
                 return false;
             }
-            Set<String> initializers =
-                    annotationDB.getAnnotationIndex().getOrDefault(SpireInitializer.class.getName(),
-                            Collections.emptySet());
+            Set<String> initializers = annotationDB.getAnnotationIndex().getOrDefault(SpireInitializer.class.getName(),
+                    Collections.emptySet());
             return initializers.contains(AutomateTheSpire.class.getName());
         }).findFirst();
         if (infos.isPresent()) {
@@ -163,13 +181,26 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
         }
         //DebugRoomAndPhaseInfo();
         cooldownLeft = cooldown;
-        PressEventButton();
-        PressEndTurn();
-        PressMapNode();
-        TakeCombatReward();
-        PressProceed();
-        OpenChest();
+        if (isAutoClickEvent()) {
+            ClickEventButton();
+        }
+        if (isAutoEndTurn()) {
+            ClickEndTurn();
+        }
+        if (isAutoClickMap()) {
+            ClickMapNode();
+        }
+        if (isAutoTakeRewards()) {
+            TakeCombatReward();
+        }
+        if (isAutoClickProceed()) {
+            ClickProceed();
+        }
+        if (isAutoOpenChest()) {
+            OpenChest();
+        }
     }
+
 
     private void DebugRoomAndPhaseInfo() {
         if (prevPhase != currRoom.phase) {
@@ -190,10 +221,10 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
         }
     }
 
-    private void PressEventButton() {
+    private void ClickEventButton() {
         if (!(AbstractDungeon.getCurrRoom() instanceof EventRoom) &&
-             !(AbstractDungeon.getCurrRoom() instanceof NeowRoom) &&
-             !(AbstractDungeon.getCurrRoom() instanceof VictoryRoom)){
+            !(AbstractDungeon.getCurrRoom() instanceof NeowRoom) &&
+            !(AbstractDungeon.getCurrRoom() instanceof VictoryRoom)) {
             return;
         }
         if (AbstractDungeon.screen != AbstractDungeon.CurrentScreen.NONE) {
@@ -202,7 +233,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
         }
         ArrayList<LargeDialogOptionButton> activeButtons = EventScreenUtils.getActiveEventButtons();
         if (activeButtons.size() == 1) {
-            eventButtonDelayLeft -= Gdx.graphics.getRawDeltaTime() * 6;
+            eventButtonDelayLeft -= Gdx.graphics.getDeltaTime() * 6;
             if (eventButtonDelayLeft <= 0 && activeButtons.get(0) != prevButton) {
                 activeButtons.get(0).pressed = true;
                 prevButton = activeButtons.get(0);
@@ -214,7 +245,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
 
     }
 
-    private void PressMapNode() {
+    private void ClickMapNode() {
         if (AbstractDungeon.screen != AbstractDungeon.CurrentScreen.MAP) {
             mapNodePressed = false;
             return;
@@ -222,18 +253,20 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
         if (mapNodePressed) {
             return;
         }
+        if (!AbstractDungeon.combatRewardScreen.hasTakenAll && !isEvenIfRewardLeft()) {
+            return;
+        }
         mapNodePressed = true;
-        if (AbstractDungeon.currMapNode.y == 14 ||
-            (AbstractDungeon.id.equals("TheEnding") && AbstractDungeon.currMapNode.y == 2)) {
+        if (AbstractDungeon.currMapNode.y == 14 || (AbstractDungeon.id.equals("TheEnding") &&
+                                                    AbstractDungeon.currMapNode.y == 2)) {
             DungeonMapPatch.doBossHover = true;
             return;
         }
-        logger.info("click!");
-        AbstractDungeon.dungeonMapScreen.clicked = true;
         ArrayList<MapRoomNode> choices = getMapScreenNodeChoices();
         if (choices.size() == 1) {
             MapRoomNodeHoverPatch.hoverNode = choices.get(0);
             MapRoomNodeHoverPatch.doHover = true;
+            AbstractDungeon.dungeonMapScreen.clicked = true;
         }
     }
 
@@ -255,17 +288,11 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
         }
     }
 
-    private void PressProceed() {
-        if (//!(currRoom instanceof TreasureRoomBoss) &&
-                !(currRoom instanceof RestRoom) &&
-                ((!AbstractDungeon.id.equals("TheEnding") && !AbstractDungeon.id.equals("TheBeyond")) ||
-                 !(currRoom instanceof MonsterRoomBoss))) {
+    private void ClickProceed() {
+        if (!(currRoom instanceof RestRoom) && ((!AbstractDungeon.id.equals("TheEnding") && !AbstractDungeon.id.equals(
+                "TheBeyond")) || !(currRoom instanceof MonsterRoomBoss))) {
             return;
         }
-//        if (currRoom instanceof TreasureRoomBoss &&
-//            !((TreasureRoomBoss) currRoom).chest.isOpen) {
-//            return;
-//        }
         if (currRoom instanceof RestRoom && !CampfireUI.hidden) {
             return;
         }
@@ -276,9 +303,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
             hb.clicked = true;
         }
     }
-
-
-    private void PressEndTurn() {
+    private void ClickEndTurn() {
         if (turnFullyBegun && AbstractDungeon.actionManager.phase == GameActionManager.Phase.WAITING_ON_USER &&
             currRoom.phase == AbstractRoom.RoomPhase.COMBAT && !AbstractDungeon.actionManager.turnHasEnded &&
             AbstractDungeon.actionManager.actions.isEmpty() && !AbstractDungeon.player.hand.canUseAnyCard() &&
@@ -304,5 +329,130 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
         turnFullyBegun = false;
     }
 
+    public void receivePostInitialize() {
+        ModPanel settingsPanel = new ModPanel();
+        ModLabeledToggleButton endTurn = new ModLabeledToggleButton("Automatically end turn", 350.0F, 700.0F,
+                Settings.CREAM_COLOR, FontHelper.charDescFont, isAutoEndTurn(), settingsPanel, l -> {
 
+        }, button -> {
+            if (modConfig != null) {
+                modConfig.setBool(AutoEndTurn, button.enabled);
+                try {
+                    modConfig.save();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+        ModLabeledToggleButton openChest = new ModLabeledToggleButton("Automatically open all chests", 350.0F, 650.0F,
+                Settings.CREAM_COLOR, FontHelper.charDescFont, isAutoOpenChest(), settingsPanel, l -> {
+        }, button -> {
+            if (modConfig != null) {
+                modConfig.setBool(AutoOpenChest, button.enabled);
+                try {
+                    modConfig.save();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+        ModLabeledToggleButton clickEvent = new ModLabeledToggleButton("Automatically click event option", 350.0F,
+                600.0F, Settings.CREAM_COLOR, FontHelper.charDescFont, isAutoClickEvent(), settingsPanel, l -> {
+        }, button -> {
+            if (modConfig != null) {
+                modConfig.setBool(AutoClickEvent, button.enabled);
+                try {
+                    modConfig.save();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+        ModLabeledToggleButton takeReward = new ModLabeledToggleButton("Automatically take golds,relics,potions",
+                350.0F, 550.0F, Settings.CREAM_COLOR, FontHelper.charDescFont, isAutoTakeRewards(), settingsPanel,
+                l -> {
+                }, button -> {
+            if (modConfig != null) {
+                modConfig.setBool(AutoTakeRewards, button.enabled);
+                try {
+                    modConfig.save();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+        ModLabeledToggleButton clickMap = new ModLabeledToggleButton("Automatically click map nodes", 350.0F, 500.0F,
+                Settings.CREAM_COLOR, FontHelper.charDescFont, isAutoClickMap(), settingsPanel, l -> {
+        }, button -> {
+            if (modConfig != null) {
+                modConfig.setBool(AutoClickMapNode, button.enabled);
+                try {
+                    modConfig.save();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+        ModLabeledToggleButton rewardLeft = new ModLabeledToggleButton("Even if there are rewards left", 375.0F, 450.0F,
+                Settings.CREAM_COLOR, FontHelper.charDescFont, isEvenIfRewardLeft(), settingsPanel, l -> {
+        }, button -> {
+            if (modConfig != null) {
+                modConfig.setBool(EvenIfRewardLeft, button.enabled);
+                try {
+                    modConfig.save();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+        ModLabeledToggleButton clickProceed = new ModLabeledToggleButton("Automatically click proceed button", 350.0F,
+                400.0F, Settings.CREAM_COLOR, FontHelper.charDescFont, isAutoClickProceed(), settingsPanel, l -> {
+        }, button -> {
+            if (modConfig != null) {
+                modConfig.setBool(AutoClickProceed, button.enabled);
+                try {
+                    modConfig.save();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+        settingsPanel.addUIElement(endTurn);
+        settingsPanel.addUIElement(openChest);
+        settingsPanel.addUIElement(clickEvent);
+        settingsPanel.addUIElement(clickMap);
+        settingsPanel.addUIElement(rewardLeft);
+        settingsPanel.addUIElement(takeReward);
+        settingsPanel.addUIElement(clickProceed);
+        BaseMod.registerModBadge(ImageMaster.loadImage("modBadge.png"), "AutomateTheSpire", "Dongwon", "",
+                settingsPanel);
+    }
+
+    private boolean isAutoEndTurn() {
+        return modConfig != null && modConfig.getBool(AutoEndTurn);
+    }
+
+    private boolean isAutoOpenChest() {
+        return modConfig != null && modConfig.getBool(AutoOpenChest);
+    }
+
+    private boolean isAutoTakeRewards() {
+        return modConfig != null && modConfig.getBool(AutoTakeRewards);
+    }
+
+    private boolean isEvenIfRewardLeft() {
+        return modConfig != null && modConfig.getBool(EvenIfRewardLeft);
+    }
+
+    private boolean isAutoClickMap() {
+        return modConfig != null && modConfig.getBool(AutoClickMapNode);
+    }
+
+    private boolean isAutoClickEvent() {
+        return modConfig != null && modConfig.getBool(AutoClickEvent);
+    }
+
+    private boolean isAutoClickProceed() {
+        return modConfig != null && modConfig.getBool(AutoClickProceed);
+    }
 }

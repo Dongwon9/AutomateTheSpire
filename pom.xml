@@ -1,4 +1,5 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <properties>
@@ -62,13 +63,6 @@
             <version>5.44.0</version>
             <scope>system</scope>
             <systemPath>${steam.path}/workshop/content/646570/1605833019/BaseMod.jar</systemPath>
-        </dependency>
-        <dependency>
-            <groupId>com.evacipated.cardcrawl.mod</groupId>
-            <artifactId>StSLib</artifactId>
-            <version>2.4.0</version>
-            <scope>system</scope>
-            <systemPath>${steam.path}/workshop/content/646570/1609158507/StSLib.jar</systemPath>
         </dependency>
     </dependencies>
 
@@ -137,7 +131,8 @@
                             <target>
                                 <!--This puts a copy of your mod's jar file into the SlayTheSpire mods folder so it will be loaded.-->
                                 <!--On mac, it will be copied to another location. See further below.-->
-                                <copy file="target/${project.artifactId}.jar" tofile="${steam.path}/common/SlayTheSpire/mods/${project.artifactId}.jar"/>
+                                <copy file="target/${project.artifactId}.jar"
+                                      tofile="${steam.path}/common/SlayTheSpire/mods/${project.artifactId}.jar"/>
                             </target>
                         </configuration>
                         <goals>
@@ -203,7 +198,8 @@
                                 <configuration>
                                     <target>
                                         <!-- This moves your mod into a common folder where all mods you make can go. -->
-                                        <copy file="target/${project.artifactId}.jar" tofile="${steam.path}/common/SlayTheSpire/SlayTheSpire.app/Contents/Resources/mods/${project.artifactId}.jar"/>
+                                        <copy file="target/${project.artifactId}.jar"
+                                              tofile="${steam.path}/common/SlayTheSpire/SlayTheSpire.app/Contents/Resources/mods/${project.artifactId}.jar"/>
                                     </target>
                                 </configuration>
                                 <goals>
