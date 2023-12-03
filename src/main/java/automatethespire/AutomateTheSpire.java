@@ -38,8 +38,10 @@ import java.util.*;
 import static com.megacrit.cardcrawl.dungeons.AbstractDungeon.*;
 
 @SpireInitializer
-public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStartPostDrawSubscriber,
-                                         PostBattleSubscriber, PostDeathSubscriber, PostInitializeSubscriber {
+public class AutomateTheSpire implements
+                              PostUpdateSubscriber, OnPlayerTurnStartPostDrawSubscriber,
+                              PostBattleSubscriber, PostDeathSubscriber,
+                              PostInitializeSubscriber, EditStringsSubscriber {
     public static final float cooldown = 0f;
     public static final String AutoEndTurn = "AutoEndTurn";
     public static final String AutoOpenChest = "AutoOpenChest";
@@ -71,10 +73,11 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
     private CurrentScreen prevScreen;
     private GameActionManager.Phase prevActionPhase;
     private SpireConfig modConfig;
-
+    private final Localization localization = new Localization();
     public AutomateTheSpire() {
         BaseMod.subscribe(this); //This will make BaseMod trigger all the subscribers at their appropriate times.
         logger.info(modID + " subscribed to BaseMod.");
+
         try {
             Properties defaults = new Properties();
             defaults.put(AutoEndTurn, Boolean.toString(true));
@@ -102,9 +105,6 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
         return Settings.language.name().toLowerCase();
     }
 
-    public static String localizationPath(String lang, String file) {
-        return resourcesFolder + "/localization/" + lang + "/" + file;
-    }
 
     private static void loadModInfo() {
         Optional<ModInfo> infos = Arrays.stream(Loader.MODINFOS).filter((modInfo) -> {
@@ -292,11 +292,11 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
     private void ClickProceed() {
         if (!(currRoom instanceof RestRoom) &&
             !((id.equals("TheEnding") || id.equals("TheBeyond")) &&
-                 (currRoom instanceof MonsterRoomBoss)) &&
+              (currRoom instanceof MonsterRoomBoss)) &&
             !(currRoom instanceof TreasureRoomBoss) && !(
-                    (id.equals("TheCity") || id.equals("Exordium")) &&
-                                                         (currRoom instanceof MonsterRoomBoss) &&
-                                                         combatRewardScreen.hasTakenAll)) {
+                (id.equals("TheCity") || id.equals("Exordium")) &&
+                (currRoom instanceof MonsterRoomBoss) &&
+                combatRewardScreen.hasTakenAll)) {
             return;
         }
         if (currRoom instanceof RestRoom && !CampfireUI.hidden) {
@@ -336,7 +336,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
 
     public void receivePostInitialize() {
         ModPanel settingsPanel = new ModPanel();
-        ModLabeledToggleButton endTurn = new ModLabeledToggleButton("Automatically end turn", 350.0F, 700.0F,
+        ModLabeledToggleButton endTurn = new ModLabeledToggleButton(CardCrawlGame.languagePack.getUIString("AutoSpire:Settings").TEXT[0], 350.0F, 700.0F,
                 Settings.CREAM_COLOR, FontHelper.charDescFont, isAutoEndTurn(), settingsPanel, l -> {
 
         }, button -> {
@@ -349,7 +349,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
                 }
             }
         });
-        ModLabeledToggleButton openChest = new ModLabeledToggleButton("Automatically open all chests", 350.0F, 650.0F,
+        ModLabeledToggleButton openChest = new ModLabeledToggleButton(CardCrawlGame.languagePack.getUIString("AutoSpire:Settings").TEXT[1], 350.0F, 650.0F,
                 Settings.CREAM_COLOR, FontHelper.charDescFont, isAutoOpenChest(), settingsPanel, l -> {
         }, button -> {
             if (modConfig != null) {
@@ -361,7 +361,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
                 }
             }
         });
-        ModLabeledToggleButton clickEvent = new ModLabeledToggleButton("Automatically click event option", 350.0F,
+        ModLabeledToggleButton clickEvent = new ModLabeledToggleButton(CardCrawlGame.languagePack.getUIString("AutoSpire:Settings").TEXT[2], 350.0F,
                 600.0F, Settings.CREAM_COLOR, FontHelper.charDescFont, isAutoClickEvent(), settingsPanel, l -> {
         }, button -> {
             if (modConfig != null) {
@@ -373,7 +373,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
                 }
             }
         });
-        ModLabeledToggleButton takeReward = new ModLabeledToggleButton("Automatically take golds,relics,potions",
+        ModLabeledToggleButton takeReward = new ModLabeledToggleButton(CardCrawlGame.languagePack.getUIString("AutoSpire:Settings").TEXT[3],
                 350.0F, 550.0F, Settings.CREAM_COLOR, FontHelper.charDescFont, isAutoTakeRewards(), settingsPanel,
                 l -> {
                 }, button -> {
@@ -386,7 +386,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
                 }
             }
         });
-        ModLabeledToggleButton clickMap = new ModLabeledToggleButton("Automatically click map nodes", 350.0F, 500.0F,
+        ModLabeledToggleButton clickMap = new ModLabeledToggleButton(CardCrawlGame.languagePack.getUIString("AutoSpire:Settings").TEXT[4], 350.0F, 500.0F,
                 Settings.CREAM_COLOR, FontHelper.charDescFont, isAutoClickMap(), settingsPanel, l -> {
         }, button -> {
             if (modConfig != null) {
@@ -398,7 +398,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
                 }
             }
         });
-        ModLabeledToggleButton rewardLeft = new ModLabeledToggleButton("Even if there are rewards left", 375.0F, 450.0F,
+        ModLabeledToggleButton rewardLeft = new ModLabeledToggleButton(CardCrawlGame.languagePack.getUIString("AutoSpire:Settings").TEXT[5], 375.0F, 450.0F,
                 Settings.CREAM_COLOR, FontHelper.charDescFont, isEvenIfRewardLeft(), settingsPanel, l -> {
         }, button -> {
             if (modConfig != null) {
@@ -410,7 +410,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
                 }
             }
         });
-        ModLabeledToggleButton clickProceed = new ModLabeledToggleButton("Automatically click proceed button", 350.0F,
+        ModLabeledToggleButton clickProceed = new ModLabeledToggleButton(CardCrawlGame.languagePack.getUIString("AutoSpire:Settings").TEXT[6], 350.0F,
                 400.0F, Settings.CREAM_COLOR, FontHelper.charDescFont, isAutoClickProceed(), settingsPanel, l -> {
         }, button -> {
             if (modConfig != null) {
@@ -431,6 +431,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
         settingsPanel.addUIElement(clickProceed);
         BaseMod.registerModBadge(ImageMaster.loadImage("modBadge.png"), "AutomateTheSpire", "Dongwon", "",
                 settingsPanel);
+
     }
 
     private boolean isAutoEndTurn() {
@@ -459,5 +460,10 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
 
     private boolean isAutoClickProceed() {
         return modConfig != null && modConfig.getBool(AutoClickProceed);
+    }
+
+    @Override
+    public void receiveEditStrings() {
+        localization.receiveEditStrings();
     }
 }

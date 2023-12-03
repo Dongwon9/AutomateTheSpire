@@ -21,7 +21,7 @@
 
     <!-- This information will be displayed in ModTheSpire, the modded launcher. -->
     <name>Automate The Spire</name>
-    <version>1.1.1</version>
+    <version>1.2.3</version>
     <!-- Avoid using \ in this description, as they can cause the description to fail to load. -->
     <!-- If you really want to use them, you'll need to "escape" them by putting another one in front, like \\ -->
     <description>This mod automates some "Redundant" action you need to do in game.
@@ -29,7 +29,7 @@
         - If there is only one node to choose in the map screen, choose it.
         - Automatically collect all rewards except for cards and Sapphire Key.
         - If there is only one option in an event, choose it.
-        - After campfire, boss chest and act 3/4 boss defeat, press the "Proceed" button.
+        - Automatically press the "Proceed" button.
         - Automatically open all chests(unless you have cursed key)
     </description>
 

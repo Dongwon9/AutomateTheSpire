@@ -1,0 +1,21 @@
+{
+  "${modID}:Settings": {
+    "TEXT": [
+      "자동 턴종료",
+      "상자 자동으로 열기",
+      "이벤트 선택지 자동 선택",
+      "골드, 유물, 포션 자동 획득",
+      "지도 방 자동 선택",
+      "아직 안받은 보상이 있어도 선택",
+      "진행 버튼 자동 클릭"
+    ],
+    "EXTRA_TEXT": [
+      "This is another",
+      "array of Strings."
+    ],
+    "TEXT_DICT": {
+      "This": "Contains pairs of Strings, used to get values based on keys.",
+      "This is a key": "This is a value."
+    }
+  }
+}
