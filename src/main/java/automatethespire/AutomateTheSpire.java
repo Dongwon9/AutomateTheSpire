@@ -35,6 +35,8 @@ import org.scannotation.AnnotationDB;
 import java.io.IOException;
 import java.util.*;
 
+import static com.megacrit.cardcrawl.dungeons.AbstractDungeon.*;
+
 @SpireInitializer
 public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStartPostDrawSubscriber,
                                          PostBattleSubscriber, PostDeathSubscriber, PostInitializeSubscriber {
@@ -47,7 +49,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
     public static final String AutoClickEvent = "AutoClickEvent";
     public static final String AutoClickProceed = "AutoClickProceed";
     private static final String resourcesFolder = "automatethespire";
-    private static final float eventButtonDelay = 0.1f;
+
     public static ModInfo info;
     public static String modID; //Edit your pom.xml to change this
     public static final Logger logger = LogManager.getLogger(modID);
@@ -66,9 +68,10 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
     private float eventButtonDelayLeft = 0.1f;
     private AbstractRoom.RoomPhase prevPhase;
     private Class<? extends AbstractRoom> prevRoom;
-    private AbstractDungeon.CurrentScreen prevScreen;
+    private CurrentScreen prevScreen;
     private GameActionManager.Phase prevActionPhase;
     private SpireConfig modConfig;
+
     public AutomateTheSpire() {
         BaseMod.subscribe(this); //This will make BaseMod trigger all the subscribers at their appropriate times.
         logger.info(modID + " subscribed to BaseMod.");
@@ -123,9 +126,9 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
 
     public static ArrayList<MapRoomNode> getMapScreenNodeChoices() {
         ArrayList<MapRoomNode> choices = new ArrayList<>();
-        MapRoomNode currMapNode = AbstractDungeon.getCurrMapNode();
+        MapRoomNode currMapNode = getCurrMapNode();
         ArrayList<ArrayList<MapRoomNode>> map = AbstractDungeon.map;
-        if (!AbstractDungeon.firstRoomChosen) {
+        if (!firstRoomChosen) {
             for (MapRoomNode node : map.get(0)) {
                 if (node.hasEdges()) {
                     choices.add(node);
@@ -149,10 +152,10 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
     }
 
     private static void TakeCombatReward() {
-        if (AbstractDungeon.screen != AbstractDungeon.CurrentScreen.COMBAT_REWARD) {
+        if (screen != CurrentScreen.COMBAT_REWARD) {
             return;
         }
-        for (RewardItem reward : AbstractDungeon.combatRewardScreen.rewards) {
+        for (RewardItem reward : combatRewardScreen.rewards) {
             if (reward.type != RewardItem.RewardType.CARD &&
                 !(reward.type == RewardItem.RewardType.RELIC && reward.relicLink != null) &&
                 reward.type != RewardItem.RewardType.SAPPHIRE_KEY) {
@@ -160,9 +163,8 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
                 reward.isDone = true;
             }
         }
-        if (AbstractDungeon.combatRewardScreen.hasTakenAll &&
-            !(AbstractDungeon.getCurrRoom() instanceof MonsterRoomBoss)) {
-            AbstractDungeon.dungeonMapScreen.open(false);
+        if (combatRewardScreen.hasTakenAll && !(getCurrRoom() instanceof MonsterRoomBoss)) {
+            dungeonMapScreen.open(false);
         }
     }
 
@@ -171,11 +173,11 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
     @Override
     public void receivePostUpdate() {
         cooldownLeft -= Gdx.graphics.getDeltaTime();
-        if (cooldownLeft > 0 || !CardCrawlGame.isInARun() || !AbstractDungeon.isPlayerInDungeon()) {
+        if (cooldownLeft > 0 || !CardCrawlGame.isInARun() || !isPlayerInDungeon()) {
             return;
         }
         try {
-            currRoom = AbstractDungeon.getCurrRoom();
+            currRoom = getCurrRoom();
         } catch (Exception e) {
             return;
         }
@@ -211,29 +213,29 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
             logger.info("Room: " + currRoom.getClass());
             prevRoom = currRoom.getClass();
         }
-        if (prevScreen != AbstractDungeon.screen) {
-            logger.info("Screen " + AbstractDungeon.screen);
-            prevScreen = AbstractDungeon.screen;
+        if (prevScreen != screen) {
+            logger.info("Screen " + screen);
+            prevScreen = screen;
         }
-        if (prevActionPhase != AbstractDungeon.actionManager.phase) {
-            logger.info("ActionPhase : " + AbstractDungeon.actionManager.phase);
-            prevActionPhase = AbstractDungeon.actionManager.phase;
+        if (prevActionPhase != actionManager.phase) {
+            logger.info("ActionPhase : " + actionManager.phase);
+            prevActionPhase = actionManager.phase;
         }
     }
 
     private void ClickEventButton() {
-        if (!(AbstractDungeon.getCurrRoom() instanceof EventRoom) &&
-            !(AbstractDungeon.getCurrRoom() instanceof NeowRoom) &&
-            !(AbstractDungeon.getCurrRoom() instanceof VictoryRoom)) {
+        final float eventButtonDelay = 0.5f;
+        if (!(getCurrRoom() instanceof EventRoom) && !(getCurrRoom() instanceof NeowRoom) &&
+            !(getCurrRoom() instanceof VictoryRoom)) {
             return;
         }
-        if (AbstractDungeon.screen != AbstractDungeon.CurrentScreen.NONE) {
-            eventButtonDelayLeft = eventButtonDelay * 24;
+        if (screen != CurrentScreen.NONE) {
+            eventButtonDelayLeft = eventButtonDelay;
             return;
         }
         ArrayList<LargeDialogOptionButton> activeButtons = EventScreenUtils.getActiveEventButtons();
         if (activeButtons.size() == 1) {
-            eventButtonDelayLeft -= Gdx.graphics.getDeltaTime() * 6;
+            eventButtonDelayLeft -= Gdx.graphics.getDeltaTime();
             if (eventButtonDelayLeft <= 0 && activeButtons.get(0) != prevButton) {
                 activeButtons.get(0).pressed = true;
                 prevButton = activeButtons.get(0);
@@ -246,19 +248,18 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
     }
 
     private void ClickMapNode() {
-        if (AbstractDungeon.screen != AbstractDungeon.CurrentScreen.MAP) {
+        if (screen != CurrentScreen.MAP) {
             mapNodePressed = false;
             return;
         }
         if (mapNodePressed) {
             return;
         }
-        if (!AbstractDungeon.combatRewardScreen.hasTakenAll && !isEvenIfRewardLeft()) {
+        if (!combatRewardScreen.hasTakenAll && !isEvenIfRewardLeft()) {
             return;
         }
         mapNodePressed = true;
-        if (AbstractDungeon.currMapNode.y == 14 || (AbstractDungeon.id.equals("TheEnding") &&
-                                                    AbstractDungeon.currMapNode.y == 2)) {
+        if (currMapNode.y == 14 || (id.equals("TheEnding") && currMapNode.y == 2)) {
             DungeonMapPatch.doBossHover = true;
             return;
         }
@@ -266,7 +267,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
         if (choices.size() == 1) {
             MapRoomNodeHoverPatch.hoverNode = choices.get(0);
             MapRoomNodeHoverPatch.doHover = true;
-            AbstractDungeon.dungeonMapScreen.clicked = true;
+            dungeonMapScreen.clicked = true;
         }
     }
 
@@ -276,11 +277,11 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
         }
         AbstractChest chest = null;
         if (currRoom instanceof TreasureRoomBoss && !bossChestOpened) {
-            chest = ((TreasureRoomBoss) AbstractDungeon.getCurrRoom()).chest;
+            chest = ((TreasureRoomBoss) getCurrRoom()).chest;
             bossChestOpened = true;
         }
-        if (currRoom instanceof TreasureRoom && !AbstractDungeon.player.hasRelic("Cursed Key")) {
-            chest = ((TreasureRoom) AbstractDungeon.getCurrRoom()).chest;
+        if (currRoom instanceof TreasureRoom && !player.hasRelic("Cursed Key")) {
+            chest = ((TreasureRoom) getCurrRoom()).chest;
         }
         if (chest != null && !chest.isOpen) {
             chest.isOpen = true;
@@ -289,26 +290,30 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
     }
 
     private void ClickProceed() {
-        if (!(currRoom instanceof RestRoom) && ((!AbstractDungeon.id.equals("TheEnding") && !AbstractDungeon.id.equals(
-                "TheBeyond")) || !(currRoom instanceof MonsterRoomBoss))) {
+        if (!(currRoom instanceof RestRoom) &&
+            !((id.equals("TheEnding") || id.equals("TheBeyond")) &&
+                 (currRoom instanceof MonsterRoomBoss)) &&
+            !(currRoom instanceof TreasureRoomBoss) && !(
+                    (id.equals("TheCity") || id.equals("Exordium")) &&
+                                                         (currRoom instanceof MonsterRoomBoss) &&
+                                                         combatRewardScreen.hasTakenAll)) {
             return;
         }
         if (currRoom instanceof RestRoom && !CampfireUI.hidden) {
             return;
         }
-        if (!(boolean) ReflectionHacks.getPrivate(AbstractDungeon.overlayMenu.proceedButton, ProceedButton.class,
-                "isHidden")) {
-            Hitbox hb = ReflectionHacks.getPrivate(AbstractDungeon.overlayMenu.proceedButton, ProceedButton.class,
-                    "hb");
-            hb.clicked = true;
+        if ((boolean) ReflectionHacks.getPrivate(overlayMenu.proceedButton, ProceedButton.class, "isHidden")) {
+            return;
         }
+        Hitbox hb = ReflectionHacks.getPrivate(overlayMenu.proceedButton, ProceedButton.class, "hb");
+        hb.clicked = true;
     }
+
     private void ClickEndTurn() {
-        if (turnFullyBegun && AbstractDungeon.actionManager.phase == GameActionManager.Phase.WAITING_ON_USER &&
-            currRoom.phase == AbstractRoom.RoomPhase.COMBAT && !AbstractDungeon.actionManager.turnHasEnded &&
-            AbstractDungeon.actionManager.actions.isEmpty() && !AbstractDungeon.player.hand.canUseAnyCard() &&
-            !AbstractDungeon.player.hasAnyPotions()) {
-            AbstractDungeon.actionManager.addToBottom(new PressEndTurnButtonAction());
+        if (turnFullyBegun && actionManager.phase == GameActionManager.Phase.WAITING_ON_USER &&
+            currRoom.phase == AbstractRoom.RoomPhase.COMBAT && !actionManager.turnHasEnded &&
+            actionManager.actions.isEmpty() && !player.hand.canUseAnyCard() && !player.hasAnyPotions()) {
+            actionManager.addToBottom(new PressEndTurnButtonAction());
             logger.info("Ended turn!");
             turnFullyBegun = false;
         }
