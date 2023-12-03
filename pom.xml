@@ -2,8 +2,8 @@
     <modelVersion>4.0.0</modelVersion>
 
     <properties>
-        <modID>AutomateTheSpire</modID>
-        <author>Me! (Or well, you. If you want to use \"quotes\" make sure you have slashes in front of them like this.)</author>
+        <modID>AutoSpire</modID>
+        <author>Dongwon</author>
 
         <!-- Change the path for your system to match your Steam installation. -->
         <steam.windows>C:/Program Files (x86)/steam/steamapps</steam.windows>
@@ -19,13 +19,18 @@
     </properties>
 
     <!-- This information will be displayed in ModTheSpire, the modded launcher. -->
-    <name>AutomateTheSpire</name>
-    <version>0.0.0</version>
+    <name>Automate The Spire</name>
+    <version>1.1.1</version>
     <!-- Avoid using \ in this description, as they can cause the description to fail to load. -->
     <!-- If you really want to use them, you'll need to "escape" them by putting another one in front, like \\ -->
-    <description>This is a description!\n"This" is a second line of description.
-    This "\\" is a slash. If you add another line like this:
-    All the spaces on the left of this will be gone. If you want spacing on a new line, do it:\n    like this.</description>
+    <description>This mod automates some "Redundant" action you need to do in game.
+        - If there is nothing to take in a reward screen, open the map.
+        - If there is only one node to choose in the map screen, choose it.
+        - Automatically collect all rewards except for cards and Sapphire Key.
+        - If there is only one option in an event, choose it.
+        - After campfire, boss chest and act 3/4 boss defeat, press the "Proceed" button.
+        - Automatically open all chests(unless you have cursed key)
+    </description>
 
     <!--You shouldn't need to change anything below this point, but feel free to look at it.-->
     <!--You'll get a warning regarding these when you package your mod, but don't worry, it's just set up like this for convenience.-->
