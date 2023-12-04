@@ -2,10 +2,7 @@ package automatethespire;
 
 import automatethespire.patches.DungeonMapPatch;
 import automatethespire.patches.MapRoomNodeHoverPatch;
-import basemod.BaseMod;
-import basemod.ModLabeledToggleButton;
-import basemod.ModPanel;
-import basemod.ReflectionHacks;
+import basemod.*;
 import basemod.interfaces.*;
 import com.badlogic.gdx.Gdx;
 import com.evacipated.cardcrawl.modthespire.Loader;
@@ -35,14 +32,12 @@ import org.scannotation.AnnotationDB;
 import java.io.IOException;
 import java.util.*;
 
+import static com.megacrit.cardcrawl.core.CardCrawlGame.languagePack;
 import static com.megacrit.cardcrawl.dungeons.AbstractDungeon.*;
 
 @SpireInitializer
-public class AutomateTheSpire implements
-                              PostUpdateSubscriber, OnPlayerTurnStartPostDrawSubscriber,
-                              PostBattleSubscriber, PostDeathSubscriber,
-                              PostInitializeSubscriber, EditStringsSubscriber {
-    public static final float cooldown = 0f;
+public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStartPostDrawSubscriber,
+    PostBattleSubscriber, PostDeathSubscriber, PostInitializeSubscriber, EditStringsSubscriber {
     public static final String AutoEndTurn = "AutoEndTurn";
     public static final String AutoOpenChest = "AutoOpenChest";
     public static final String AutoClickMapNode = "AutoClickMapNode";
@@ -60,6 +55,7 @@ public class AutomateTheSpire implements
         loadModInfo();
     }
 
+    private final Localization localization = new Localization();
     LargeDialogOptionButton prevButton;
     private AbstractRoom currRoom;
     private float cooldownLeft = 0f;
@@ -73,7 +69,7 @@ public class AutomateTheSpire implements
     private CurrentScreen prevScreen;
     private GameActionManager.Phase prevActionPhase;
     private SpireConfig modConfig;
-    private final Localization localization = new Localization();
+
     public AutomateTheSpire() {
         BaseMod.subscribe(this); //This will make BaseMod trigger all the subscribers at their appropriate times.
         logger.info(modID + " subscribed to BaseMod.");
@@ -87,6 +83,7 @@ public class AutomateTheSpire implements
             defaults.put(EvenIfRewardLeft, Boolean.toString(true));
             defaults.put(AutoClickEvent, Boolean.toString(true));
             defaults.put(AutoClickProceed, Boolean.toString(true));
+            defaults.put("AutoActionCooldown", Float.toString(0f));
             modConfig = new SpireConfig("AutomateTheSpire", "Config", defaults);
         } catch (Exception e) {
             e.printStackTrace();
@@ -112,8 +109,8 @@ public class AutomateTheSpire implements
             if (annotationDB == null) {
                 return false;
             }
-            Set<String> initializers = annotationDB.getAnnotationIndex().getOrDefault(SpireInitializer.class.getName(),
-                    Collections.emptySet());
+            Set<String> initializers = annotationDB.getAnnotationIndex()
+                .getOrDefault(SpireInitializer.class.getName(), Collections.emptySet());
             return initializers.contains(AutomateTheSpire.class.getName());
         }).findFirst();
         if (infos.isPresent()) {
@@ -182,7 +179,7 @@ public class AutomateTheSpire implements
             return;
         }
         //DebugRoomAndPhaseInfo();
-        cooldownLeft = cooldown;
+        cooldownLeft = getAutoActionCooldown();
         if (isAutoClickEvent()) {
             ClickEventButton();
         }
@@ -291,11 +288,9 @@ public class AutomateTheSpire implements
 
     private void ClickProceed() {
         if (!(currRoom instanceof RestRoom) &&
-            !((id.equals("TheEnding") || id.equals("TheBeyond")) &&
-              (currRoom instanceof MonsterRoomBoss)) &&
-            !(currRoom instanceof TreasureRoomBoss) && !(
-                (id.equals("TheCity") || id.equals("Exordium")) &&
-                (currRoom instanceof MonsterRoomBoss) &&
+            !((id.equals("TheEnding") || id.equals("TheBeyond")) && (currRoom instanceof MonsterRoomBoss)) &&
+            !(currRoom instanceof TreasureRoomBoss) &&
+            !((id.equals("TheCity") || id.equals("Exordium")) && (currRoom instanceof MonsterRoomBoss) &&
                 combatRewardScreen.hasTakenAll)) {
             return;
         }
@@ -336,92 +331,102 @@ public class AutomateTheSpire implements
 
     public void receivePostInitialize() {
         ModPanel settingsPanel = new ModPanel();
-        ModLabeledToggleButton endTurn = new ModLabeledToggleButton(CardCrawlGame.languagePack.getUIString("AutoSpire:Settings").TEXT[0], 350.0F, 700.0F,
-                Settings.CREAM_COLOR, FontHelper.charDescFont, isAutoEndTurn(), settingsPanel, l -> {
-
-        }, button -> {
-            if (modConfig != null) {
-                modConfig.setBool(AutoEndTurn, button.enabled);
-                try {
-                    modConfig.save();
-                } catch (IOException e) {
-                    e.printStackTrace();
+        ModLabeledToggleButton endTurn =
+            new ModLabeledToggleButton(languagePack.getUIString("AutoSpire:Settings").TEXT[0], 350.0F, 700.0F,
+                Settings.CREAM_COLOR, FontHelper.charDescFont, isAutoEndTurn(), settingsPanel, l -> {}, button -> {
+                if (modConfig != null) {
+                    modConfig.setBool(AutoEndTurn, button.enabled);
+                    try {
+                        modConfig.save();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
                 }
-            }
-        });
-        ModLabeledToggleButton openChest = new ModLabeledToggleButton(CardCrawlGame.languagePack.getUIString("AutoSpire:Settings").TEXT[1], 350.0F, 650.0F,
-                Settings.CREAM_COLOR, FontHelper.charDescFont, isAutoOpenChest(), settingsPanel, l -> {
-        }, button -> {
-            if (modConfig != null) {
-                modConfig.setBool(AutoOpenChest, button.enabled);
-                try {
-                    modConfig.save();
-                } catch (IOException e) {
-                    e.printStackTrace();
+            });
+        ModLabeledToggleButton openChest =
+            new ModLabeledToggleButton(languagePack.getUIString("AutoSpire:Settings").TEXT[1], 350.0F, 650.0F,
+                Settings.CREAM_COLOR, FontHelper.charDescFont, isAutoOpenChest(), settingsPanel, l -> {}, button -> {
+                if (modConfig != null) {
+                    modConfig.setBool(AutoOpenChest, button.enabled);
+                    try {
+                        modConfig.save();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
                 }
-            }
-        });
-        ModLabeledToggleButton clickEvent = new ModLabeledToggleButton(CardCrawlGame.languagePack.getUIString("AutoSpire:Settings").TEXT[2], 350.0F,
-                600.0F, Settings.CREAM_COLOR, FontHelper.charDescFont, isAutoClickEvent(), settingsPanel, l -> {
-        }, button -> {
-            if (modConfig != null) {
-                modConfig.setBool(AutoClickEvent, button.enabled);
-                try {
-                    modConfig.save();
-                } catch (IOException e) {
-                    e.printStackTrace();
+            });
+        ModLabeledToggleButton clickEvent =
+            new ModLabeledToggleButton(languagePack.getUIString("AutoSpire:Settings").TEXT[2], 350.0F, 600.0F,
+                Settings.CREAM_COLOR, FontHelper.charDescFont, isAutoClickEvent(), settingsPanel, l -> {}, button -> {
+                if (modConfig != null) {
+                    modConfig.setBool(AutoClickEvent, button.enabled);
+                    try {
+                        modConfig.save();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
                 }
-            }
-        });
-        ModLabeledToggleButton takeReward = new ModLabeledToggleButton(CardCrawlGame.languagePack.getUIString("AutoSpire:Settings").TEXT[3],
-                350.0F, 550.0F, Settings.CREAM_COLOR, FontHelper.charDescFont, isAutoTakeRewards(), settingsPanel,
-                l -> {
-                }, button -> {
-            if (modConfig != null) {
-                modConfig.setBool(AutoTakeRewards, button.enabled);
-                try {
-                    modConfig.save();
-                } catch (IOException e) {
-                    e.printStackTrace();
+            });
+        ModLabeledToggleButton takeReward =
+            new ModLabeledToggleButton(languagePack.getUIString("AutoSpire:Settings").TEXT[3], 350.0F, 550.0F,
+                Settings.CREAM_COLOR, FontHelper.charDescFont, isAutoTakeRewards(), settingsPanel, l -> {}, button -> {
+                if (modConfig != null) {
+                    modConfig.setBool(AutoTakeRewards, button.enabled);
+                    try {
+                        modConfig.save();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
                 }
-            }
-        });
-        ModLabeledToggleButton clickMap = new ModLabeledToggleButton(CardCrawlGame.languagePack.getUIString("AutoSpire:Settings").TEXT[4], 350.0F, 500.0F,
-                Settings.CREAM_COLOR, FontHelper.charDescFont, isAutoClickMap(), settingsPanel, l -> {
-        }, button -> {
-            if (modConfig != null) {
-                modConfig.setBool(AutoClickMapNode, button.enabled);
-                try {
-                    modConfig.save();
-                } catch (IOException e) {
-                    e.printStackTrace();
+            });
+        ModLabeledToggleButton clickMap =
+            new ModLabeledToggleButton(languagePack.getUIString("AutoSpire:Settings").TEXT[4], 350.0F, 500.0F,
+                Settings.CREAM_COLOR, FontHelper.charDescFont, isAutoClickMap(), settingsPanel, l -> {}, button -> {
+                if (modConfig != null) {
+                    modConfig.setBool(AutoClickMapNode, button.enabled);
+                    try {
+                        modConfig.save();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
                 }
-            }
-        });
-        ModLabeledToggleButton rewardLeft = new ModLabeledToggleButton(CardCrawlGame.languagePack.getUIString("AutoSpire:Settings").TEXT[5], 375.0F, 450.0F,
-                Settings.CREAM_COLOR, FontHelper.charDescFont, isEvenIfRewardLeft(), settingsPanel, l -> {
-        }, button -> {
-            if (modConfig != null) {
-                modConfig.setBool(EvenIfRewardLeft, button.enabled);
-                try {
-                    modConfig.save();
-                } catch (IOException e) {
-                    e.printStackTrace();
+            });
+        ModLabeledToggleButton rewardLeft =
+            new ModLabeledToggleButton(languagePack.getUIString("AutoSpire:Settings").TEXT[5], 375.0F, 450.0F,
+                Settings.CREAM_COLOR, FontHelper.charDescFont, isEvenIfRewardLeft(), settingsPanel, l -> {}, button -> {
+                if (modConfig != null) {
+                    modConfig.setBool(EvenIfRewardLeft, button.enabled);
+                    try {
+                        modConfig.save();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
                 }
-            }
-        });
-        ModLabeledToggleButton clickProceed = new ModLabeledToggleButton(CardCrawlGame.languagePack.getUIString("AutoSpire:Settings").TEXT[6], 350.0F,
-                400.0F, Settings.CREAM_COLOR, FontHelper.charDescFont, isAutoClickProceed(), settingsPanel, l -> {
-        }, button -> {
-            if (modConfig != null) {
-                modConfig.setBool(AutoClickProceed, button.enabled);
-                try {
-                    modConfig.save();
-                } catch (IOException e) {
-                    e.printStackTrace();
+            });
+        ModLabeledToggleButton clickProceed =
+            new ModLabeledToggleButton(languagePack.getUIString("AutoSpire:Settings").TEXT[6], 350.0F, 400.0F,
+                Settings.CREAM_COLOR, FontHelper.charDescFont, isAutoClickProceed(), settingsPanel, l -> {}, button -> {
+                if (modConfig != null) {
+                    modConfig.setBool(AutoClickProceed, button.enabled);
+                    try {
+                        modConfig.save();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
                 }
-            }
-        });
+            });
+        ModMinMaxSlider cooldown =
+            new ModMinMaxSlider(languagePack.getUIString("AutoSpire:Settings").TEXT[7], 350.0F, 350.0F, 0f, 1f,
+                getAutoActionCooldown(), "%.2fs", settingsPanel, c -> {
+                if (modConfig != null) {
+                    modConfig.setFloat("AutoActionCooldown", c.getValue());
+                    try {
+                        modConfig.save();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            });
         settingsPanel.addUIElement(endTurn);
         settingsPanel.addUIElement(openChest);
         settingsPanel.addUIElement(clickEvent);
@@ -429,9 +434,14 @@ public class AutomateTheSpire implements
         settingsPanel.addUIElement(rewardLeft);
         settingsPanel.addUIElement(takeReward);
         settingsPanel.addUIElement(clickProceed);
+        settingsPanel.addUIElement(cooldown);
         BaseMod.registerModBadge(ImageMaster.loadImage("modBadge.png"), "AutomateTheSpire", "Dongwon", "",
-                settingsPanel);
+            settingsPanel);
 
+    }
+
+    private float getAutoActionCooldown() {
+        return modConfig == null ? 0 : modConfig.getFloat("AutoActionCooldown");
     }
 
     private boolean isAutoEndTurn() {
