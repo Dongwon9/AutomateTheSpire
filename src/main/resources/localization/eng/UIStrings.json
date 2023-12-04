@@ -6,7 +6,8 @@
       "Automatically click event option",
       "Automatically take golds,relics,potions",
       "Automatically click map nodes",
-      "Even if there are rewards left",
+      "click if there are rewards left",
+      "click in shop",
       "Automatically click proceed button",
       "Auto action delay"
     ],
