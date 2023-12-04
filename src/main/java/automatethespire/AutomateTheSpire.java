@@ -12,6 +12,7 @@ import com.evacipated.cardcrawl.modthespire.lib.SpireConfig;
 import com.evacipated.cardcrawl.modthespire.lib.SpireInitializer;
 import com.megacrit.cardcrawl.actions.GameActionManager;
 import com.megacrit.cardcrawl.actions.watcher.PressEndTurnButtonAction;
+import com.megacrit.cardcrawl.cards.AbstractCard;
 import com.megacrit.cardcrawl.core.CardCrawlGame;
 import com.megacrit.cardcrawl.core.Settings;
 import com.megacrit.cardcrawl.dungeons.AbstractDungeon;
@@ -20,6 +21,9 @@ import com.megacrit.cardcrawl.helpers.Hitbox;
 import com.megacrit.cardcrawl.helpers.ImageMaster;
 import com.megacrit.cardcrawl.map.MapRoomNode;
 import com.megacrit.cardcrawl.neow.NeowRoom;
+import com.megacrit.cardcrawl.potions.AbstractPotion;
+import com.megacrit.cardcrawl.potions.FairyPotion;
+import com.megacrit.cardcrawl.potions.PotionSlot;
 import com.megacrit.cardcrawl.rewards.RewardItem;
 import com.megacrit.cardcrawl.rewards.chests.AbstractChest;
 import com.megacrit.cardcrawl.rooms.*;
@@ -351,11 +355,41 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
         hb.clicked = true;
         return FailCode.CooldownFail;
     }
+    public boolean canUseAnyCard() {
+        Iterator<AbstractCard> var1 = player.hand.group.iterator();
 
+        AbstractCard c;
+        while(var1.hasNext()) {
+            c = var1.next();
+            if (c.type == AbstractCard.CardType.STATUS && c.costForTurn < -1 && !AbstractDungeon.player.hasRelic("Medical Kit")) {
+                continue;
+            } else if (c.type == AbstractCard.CardType.CURSE && c.costForTurn < -1 && !AbstractDungeon.player.hasRelic("Blue Candle")) {
+                continue;
+            }
+            if(c.hasEnoughEnergy()) {
+                return true;
+            }
+        }
+        return false;
+    }
+    public boolean hasAnyPotions() {
+        Iterator var1 = player.potions.iterator();
+
+        AbstractPotion p;
+        do {
+            if (!var1.hasNext()) {
+                return false;
+            }
+
+            p = (AbstractPotion)var1.next();
+        } while(p instanceof PotionSlot || p instanceof FairyPotion);
+
+        return true;
+    }
     private FailCode ClickEndTurn() {
         if (!turnFullyBegun || actionManager.phase != GameActionManager.Phase.WAITING_ON_USER ||
             currRoom.phase != AbstractRoom.RoomPhase.COMBAT || actionManager.turnHasEnded ||
-            !actionManager.actions.isEmpty() || player.hand.canUseAnyCard() || player.hasAnyPotions()) {
+            !actionManager.actions.isEmpty() || canUseAnyCard() || hasAnyPotions()) {
             return FailCode.Fail;
         }
         if (cooldownLeft > 0) {
@@ -384,7 +418,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
     public void receivePostInitialize() {
         ModPanel settingsPanel = new ModPanel();
         ModLabeledToggleButton endTurn =
-            new ModLabeledToggleButton(languagePack.getUIString("AutoSpire:Settings").TEXT[0], 350.0F, 750.0F,
+            new ModLabeledToggleButton(languagePack.getUIString("AutoSpire:Settings").TEXT[0], 350.0F, 700.0F,
                 Settings.CREAM_COLOR, FontHelper.charDescFont, isAutoEndTurn(), settingsPanel, l -> {
 
             }, button -> {
@@ -398,7 +432,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
                 }
             });
         ModLabeledToggleButton openChest =
-            new ModLabeledToggleButton(languagePack.getUIString("AutoSpire:Settings").TEXT[1], 350.0F, 700.0F,
+            new ModLabeledToggleButton(languagePack.getUIString("AutoSpire:Settings").TEXT[1], 350.0F, 650.0F,
                 Settings.CREAM_COLOR, FontHelper.charDescFont, isAutoOpenChest(), settingsPanel, l -> {
             }, button -> {
                 if (modConfig != null) {
@@ -411,7 +445,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
                 }
             });
         ModLabeledToggleButton clickEvent =
-            new ModLabeledToggleButton(languagePack.getUIString("AutoSpire:Settings").TEXT[2], 350.0F, 650.0F,
+            new ModLabeledToggleButton(languagePack.getUIString("AutoSpire:Settings").TEXT[2], 350.0F, 600.0F,
                 Settings.CREAM_COLOR, FontHelper.charDescFont, isAutoClickEvent(), settingsPanel, l -> {
             }, button -> {
                 if (modConfig != null) {
@@ -424,7 +458,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
                 }
             });
         ModLabeledToggleButton takeReward =
-            new ModLabeledToggleButton(languagePack.getUIString("AutoSpire:Settings").TEXT[3], 350.0F, 600.0F,
+            new ModLabeledToggleButton(languagePack.getUIString("AutoSpire:Settings").TEXT[3], 350.0F, 550.0F,
                 Settings.CREAM_COLOR, FontHelper.charDescFont, isAutoTakeRewards(), settingsPanel, l -> {
             }, button -> {
                 if (modConfig != null) {
@@ -437,7 +471,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
                 }
             });
         ModLabeledToggleButton clickMap =
-            new ModLabeledToggleButton(languagePack.getUIString("AutoSpire:Settings").TEXT[4], 350.0F, 550.0F,
+            new ModLabeledToggleButton(languagePack.getUIString("AutoSpire:Settings").TEXT[4], 350.0F, 500.0F,
                 Settings.CREAM_COLOR, FontHelper.charDescFont, isAutoClickMap(), settingsPanel, l -> {
             }, button -> {
                 if (modConfig != null) {
@@ -450,7 +484,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
                 }
             });
         ModLabeledToggleButton rewardLeft =
-            new ModLabeledToggleButton(languagePack.getUIString("AutoSpire:Settings").TEXT[5], 375.0F, 500.0F,
+            new ModLabeledToggleButton(languagePack.getUIString("AutoSpire:Settings").TEXT[5], 375.0F, 450.0F,
                 Settings.CREAM_COLOR, FontHelper.charDescFont, isEvenIfRewardLeft(), settingsPanel, l -> {
             }, button -> {
                 if (modConfig != null) {
@@ -463,7 +497,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
                 }
             });
         ModLabeledToggleButton clickInShop =
-            new ModLabeledToggleButton(languagePack.getUIString("AutoSpire:Settings").TEXT[6], 375.0F, 450.0F,
+            new ModLabeledToggleButton(languagePack.getUIString("AutoSpire:Settings").TEXT[6], 375.0F, 400.0F,
                 Settings.CREAM_COLOR, FontHelper.charDescFont, isClickInShop(), settingsPanel, l -> {
             }, button -> {
                 if (modConfig != null) {
@@ -476,7 +510,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
                 }
             });
         ModLabeledToggleButton clickProceed =
-            new ModLabeledToggleButton(languagePack.getUIString("AutoSpire:Settings").TEXT[7], 350.0F, 400.0F,
+            new ModLabeledToggleButton(languagePack.getUIString("AutoSpire:Settings").TEXT[7], 350.0F, 350.0F,
                 Settings.CREAM_COLOR, FontHelper.charDescFont, isAutoClickProceed(), settingsPanel, l -> {
             }, button -> {
                 if (modConfig != null) {
@@ -489,7 +523,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
                 }
             });
         ModMinMaxSlider slider =
-            new ModMinMaxSlider(languagePack.getUIString("AutoSpire:Settings").TEXT[8], 550.0F, 350.0F, 0f, 1f,
+            new ModMinMaxSlider(languagePack.getUIString("AutoSpire:Settings").TEXT[8], 550.0F, 300.0F, 0f, 1f,
                 getAutoActionCooldown(), "%.2fs", settingsPanel, s -> {
                 if (modConfig != null) {
                     modConfig.setFloat("AutoActionCooldown", s.getValue());
