@@ -41,7 +41,7 @@ import static com.megacrit.cardcrawl.dungeons.AbstractDungeon.*;
 
 @SpireInitializer
 public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStartPostDrawSubscriber,
-    PostBattleSubscriber, PostDeathSubscriber, PostInitializeSubscriber, EditStringsSubscriber {
+    PostBattleSubscriber, PostDeathSubscriber, PostInitializeSubscriber, EditStringsSubscriber, PreStartGameSubscriber {
     public static final String AutoEndTurn = "AutoEndTurn";
     public static final String AutoOpenChest = "AutoOpenChest";
     public static final String AutoClickMapNode = "AutoClickMapNode";
@@ -95,6 +95,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
             defaults.put(AutoClickEvent, Boolean.toString(true));
             defaults.put(AutoClickProceed, Boolean.toString(true));
             defaults.put(AutoActionCooldown, Float.toString(0f));
+            defaults.put("AutoTakeRelics", Boolean.toString(true));
             modConfig = new SpireConfig("AutomateTheSpire", "Config", defaults);
         } catch (Exception e) {
             e.printStackTrace();
@@ -167,12 +168,14 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
         }
         boolean rewardTook = false;
         for (RewardItem reward : combatRewardScreen.rewards) {
-            if(reward.type == RewardItem.RewardType.RELIC &&
-                (reward.relic.relicId.contains("Bottled") || reward.relic.relicId.equals("War Paint") ||
-                    reward.relic.relicId.equals("Whetstone")) && !isEvenTheBottles() ||
-                reward.type == RewardItem.RewardType.CARD ||
-                reward.type == RewardItem.RewardType.RELIC && reward.relicLink != null ||
-                reward.type == RewardItem.RewardType.SAPPHIRE_KEY) {
+            if(reward.type == RewardItem.RewardType.RELIC) {
+                if(!isAutoTakeRelics() || reward.relicLink != null ||
+                    !(((reward.relic.relicId.contains("Bottled") || reward.relic.relicId.equals("War Paint") ||
+                        reward.relic.relicId.equals("Whetstone")) && isEvenTheBottles()))) {
+                    continue;
+                }
+            }
+            if(reward.type == RewardItem.RewardType.CARD || reward.type == RewardItem.RewardType.SAPPHIRE_KEY) {
                 continue;
             }
             logger.info("Taking Reward : " + reward.type);
@@ -350,7 +353,8 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
             !((currRoom instanceof TreasureRoomBoss) && ((TreasureRoomBoss) currRoom).chest.isOpen) &&
             !((id.equals("TheCity") || id.equals("Exordium")) && (currRoom instanceof MonsterRoomBoss) &&
                 combatRewardScreen.hasTakenAll) || currRoom instanceof RestRoom && !CampfireUI.hidden ||
-            (boolean) ReflectionHacks.getPrivate(overlayMenu.proceedButton, ProceedButton.class, "isHidden")) {
+            (boolean) ReflectionHacks.getPrivate(overlayMenu.proceedButton, ProceedButton.class, "isHidden") ||
+            screen != CurrentScreen.NONE) {
             return FailCode.Fail;
         }
         if((id.equals("TheCity") || id.equals("Exordium")) && currRoom instanceof MonsterRoomBoss &&
@@ -363,7 +367,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
             proceedDelayLeft > 0) {
             return FailCode.Fail;
         }
-        if(cooldownLeft >0){
+        if(cooldownLeft > 0) {
             return FailCode.CooldownFail;
         }
         Hitbox hb = ReflectionHacks.getPrivate(overlayMenu.proceedButton, ProceedButton.class, "hb");
@@ -486,8 +490,21 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
                     }
                 }
             });
+        ModLabeledToggleButton takeRelics =
+            new ModLabeledToggleButton(languagePack.getUIString(modID + ":Settings").TEXT[10], 375.0F, 500.0F,
+                Settings.CREAM_COLOR, FontHelper.charDescFont, isAutoTakeRelics(), settingsPanel, l -> {
+            }, button -> {
+                if(modConfig != null) {
+                    modConfig.setBool("AutoTakeRelics", button.enabled);
+                    try {
+                        modConfig.save();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            });
         ModLabeledToggleButton evenBottles =
-            new ModLabeledToggleButton(languagePack.getUIString(modID + ":Settings").TEXT[9], 375.0F, 500.0F,
+            new ModLabeledToggleButton(languagePack.getUIString(modID + ":Settings").TEXT[9], 375.0F, 450.0F,
                 Settings.CREAM_COLOR, FontHelper.charDescFont, isEvenTheBottles(), settingsPanel, l -> {
             }, button -> {
                 if(modConfig != null) {
@@ -500,7 +517,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
                 }
             });
         ModLabeledToggleButton clickMap =
-            new ModLabeledToggleButton(languagePack.getUIString(modID + ":Settings").TEXT[4], 350.0F, 450.0F,
+            new ModLabeledToggleButton(languagePack.getUIString(modID + ":Settings").TEXT[4], 350.0F, 400.0F,
                 Settings.CREAM_COLOR, FontHelper.charDescFont, isAutoClickMap(), settingsPanel, l -> {
             }, button -> {
                 if(modConfig != null) {
@@ -513,7 +530,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
                 }
             });
         ModLabeledToggleButton rewardLeft =
-            new ModLabeledToggleButton(languagePack.getUIString(modID + ":Settings").TEXT[5], 375.0F, 400.0F,
+            new ModLabeledToggleButton(languagePack.getUIString(modID + ":Settings").TEXT[5], 375.0F, 350.0F,
                 Settings.CREAM_COLOR, FontHelper.charDescFont, isEvenIfRewardLeft(), settingsPanel, l -> {
             }, button -> {
                 if(modConfig != null) {
@@ -526,7 +543,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
                 }
             });
         ModLabeledToggleButton clickInShop =
-            new ModLabeledToggleButton(languagePack.getUIString(modID + ":Settings").TEXT[6], 375.0F, 350.0F,
+            new ModLabeledToggleButton(languagePack.getUIString(modID + ":Settings").TEXT[6], 375.0F, 300.0F,
                 Settings.CREAM_COLOR, FontHelper.charDescFont, isClickInShop(), settingsPanel, l -> {
             }, button -> {
                 if(modConfig != null) {
@@ -539,7 +556,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
                 }
             });
         ModLabeledToggleButton clickProceed =
-            new ModLabeledToggleButton(languagePack.getUIString(modID + ":Settings").TEXT[7], 350.0F, 300.0F,
+            new ModLabeledToggleButton(languagePack.getUIString(modID + ":Settings").TEXT[7], 350.0F, 250.0F,
                 Settings.CREAM_COLOR, FontHelper.charDescFont, isAutoClickProceed(), settingsPanel, l -> {
             }, button -> {
                 if(modConfig != null) {
@@ -573,9 +590,14 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
         settingsPanel.addUIElement(evenBottles);
         settingsPanel.addUIElement(clickProceed);
         settingsPanel.addUIElement(slider);
+        settingsPanel.addUIElement(takeRelics);
         BaseMod.registerModBadge(ImageMaster.loadImage("modBadge.png"), "AutomateTheSpire", "Dongwon", "",
             settingsPanel);
 
+    }
+
+    private boolean isAutoTakeRelics() {
+        return modConfig != null & modConfig.getBool("AutoTakeRelics");
     }
 
     public boolean isClickInShop() {
@@ -617,6 +639,11 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
     @Override
     public void receiveEditStrings() {
         localization.receiveEditStrings();
+    }
+
+    @Override
+    public void receivePreStartGame() {
+        turnFullyBegun = false;
     }
 
     public enum FailCode {
