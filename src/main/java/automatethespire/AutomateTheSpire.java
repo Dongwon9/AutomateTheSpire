@@ -302,7 +302,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
             return FailCode.Fail;
         }
         if(mapNodePressed || !combatRewardScreen.hasTakenAll && !isEvenIfRewardLeft() ||
-            currRoom instanceof ShopRoom && !isClickInShop() || dungeonMapScreen.clicked) {
+            currRoom instanceof ShopRoom && !isClickInShop() || dungeonMapScreen.clicked || !firstRoomChosen) {
             return FailCode.Fail;
         }
         if(currMapNode.y == 14 || (id.equals("TheEnding") && currMapNode.y == 2)) {
