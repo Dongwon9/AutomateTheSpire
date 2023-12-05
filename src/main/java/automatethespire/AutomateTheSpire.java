@@ -141,10 +141,17 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
         boolean rewardTook = false;
         for (RewardItem reward : combatRewardScreen.rewards) {
             if(reward.type == RewardItem.RewardType.RELIC) {
-                if(!settings.isAutoTakeRelics() || reward.relicLink != null ||
-                    !(((reward.relic.relicId.contains("Bottled") || reward.relic.relicId.equals("War Paint") ||
-                        reward.relic.relicId.equals("Whetstone")) && settings.isEvenTheBottles()))) {
+                if(reward.relicLink != null) {
                     continue;
+                }
+                if(!settings.isAutoTakeRelics()) {
+                    continue;
+                }
+                if(!settings.isEvenTheBottles()) {
+                    if(reward.relic.relicId.contains("Bottled") || reward.relic.relicId.equals("War Paint") ||
+                        reward.relic.relicId.equals("Whetstone")) {
+                        continue;
+                    }
                 }
             }
             if(reward.type == RewardItem.RewardType.CARD || reward.type == RewardItem.RewardType.SAPPHIRE_KEY) {
@@ -153,8 +160,10 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
             logger.info("Taking Reward : " + reward.type);
             reward.isDone = true;
             rewardTook = true;
+
         }
-        if(combatRewardScreen.hasTakenAll && !(getCurrRoom() instanceof MonsterRoomBoss)) {
+
+        if(combatRewardScreen.hasTakenAll && !(currRoom instanceof MonsterRoomBoss || currRoom instanceof ShopRoom)) {
             dungeonMapScreen.open(false);
         }
         if(rewardTook) {
@@ -215,6 +224,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
         } else {
             cooldownLeft = settings.getAutoActionCooldown();
         }
+        DebugRoomAndPhaseInfo();
     }
 
     private void DebugRoomAndPhaseInfo() {
@@ -270,7 +280,10 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
             return FailCode.Fail;
         }
         if(mapNodePressed || (!combatRewardScreen.hasTakenAll && !settings.isEvenIfRewardLeft()) ||
-            currRoom instanceof ShopRoom && !settings.isClickInShop() || dungeonMapScreen.clicked || !firstRoomChosen) {
+            dungeonMapScreen.clicked || !firstRoomChosen) {
+            return FailCode.Fail;
+        }
+        if(currRoom instanceof ShopRoom && !settings.isClickInShop()) {
             return FailCode.Fail;
         }
         if(currMapNode.y == 14 || (id.equals("TheEnding") && currMapNode.y == 2)) {

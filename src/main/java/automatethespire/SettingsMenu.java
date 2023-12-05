@@ -50,11 +50,9 @@ public class SettingsMenu {
 
     public void MakeSettingsUI() {
         ModPanel settingsPanel = new ModPanel();
-        ModLabeledToggleButton endTurn =
-            new ModLabeledToggleButton(languagePack.getUIString(modID + ":Settings").TEXT[0], 350.0F, 700.0F,
-                Settings.CREAM_COLOR, FontHelper.charDescFont, isAutoEndTurn(), settingsPanel, l -> {
-
-            }, button -> {
+        ModLabeledToggleButton[] buttons =
+            {new ModLabeledToggleButton(languagePack.getUIString(modID + ":Settings").TEXT[0], 350.0F, 700.0F,
+                Settings.CREAM_COLOR, FontHelper.charDescFont, isAutoEndTurn(), settingsPanel, l -> {}, button -> {
                 if(config != null) {
                     config.setBool(AutoEndTurn, button.enabled);
                     try {
@@ -63,9 +61,7 @@ public class SettingsMenu {
                         e.printStackTrace();
                     }
                 }
-            });
-        ModLabeledToggleButton openChest =
-            new ModLabeledToggleButton(languagePack.getUIString(modID + ":Settings").TEXT[1], 350.0F, 650.0F,
+            }), new ModLabeledToggleButton(languagePack.getUIString(modID + ":Settings").TEXT[1], 350.0F, 650.0F,
                 Settings.CREAM_COLOR, FontHelper.charDescFont, isAutoOpenChest(), settingsPanel, l -> {
             }, button -> {
                 if(config != null) {
@@ -76,9 +72,7 @@ public class SettingsMenu {
                         e.printStackTrace();
                     }
                 }
-            });
-        ModLabeledToggleButton clickEvent =
-            new ModLabeledToggleButton(languagePack.getUIString(modID + ":Settings").TEXT[2], 350.0F, 600.0F,
+            }), new ModLabeledToggleButton(languagePack.getUIString(modID + ":Settings").TEXT[2], 350.0F, 600.0F,
                 Settings.CREAM_COLOR, FontHelper.charDescFont, isAutoClickEvent(), settingsPanel, l -> {
             }, button -> {
                 if(config != null) {
@@ -89,9 +83,7 @@ public class SettingsMenu {
                         e.printStackTrace();
                     }
                 }
-            });
-        ModLabeledToggleButton takeReward =
-            new ModLabeledToggleButton(languagePack.getUIString(modID + ":Settings").TEXT[3], 350.0F, 550.0F,
+            }), new ModLabeledToggleButton(languagePack.getUIString(modID + ":Settings").TEXT[3], 350.0F, 550.0F,
                 Settings.CREAM_COLOR, FontHelper.charDescFont, isAutoTakeRewards(), settingsPanel, l -> {
             }, button -> {
                 if(config != null) {
@@ -102,9 +94,7 @@ public class SettingsMenu {
                         e.printStackTrace();
                     }
                 }
-            });
-        ModLabeledToggleButton takeRelics =
-            new ModLabeledToggleButton(languagePack.getUIString(modID + ":Settings").TEXT[10], 375.0F, 500.0F,
+            }), new ModLabeledToggleButton(languagePack.getUIString(modID + ":Settings").TEXT[10], 375.0F, 500.0F,
                 Settings.CREAM_COLOR, FontHelper.charDescFont, isAutoTakeRelics(), settingsPanel, l -> {
             }, button -> {
                 if(config != null) {
@@ -115,9 +105,7 @@ public class SettingsMenu {
                         e.printStackTrace();
                     }
                 }
-            });
-        ModLabeledToggleButton evenBottles =
-            new ModLabeledToggleButton(languagePack.getUIString(modID + ":Settings").TEXT[9], 375.0F, 450.0F,
+            }), new ModLabeledToggleButton(languagePack.getUIString(modID + ":Settings").TEXT[9], 375.0F, 450.0F,
                 Settings.CREAM_COLOR, FontHelper.charDescFont, isEvenTheBottles(), settingsPanel, l -> {
             }, button -> {
                 if(config != null) {
@@ -128,9 +116,7 @@ public class SettingsMenu {
                         e.printStackTrace();
                     }
                 }
-            });
-        ModLabeledToggleButton clickMap =
-            new ModLabeledToggleButton(languagePack.getUIString(modID + ":Settings").TEXT[4], 350.0F, 400.0F,
+            }), new ModLabeledToggleButton(languagePack.getUIString(modID + ":Settings").TEXT[4], 350.0F, 400.0F,
                 Settings.CREAM_COLOR, FontHelper.charDescFont, isAutoClickMap(), settingsPanel, l -> {
             }, button -> {
                 if(config != null) {
@@ -141,9 +127,7 @@ public class SettingsMenu {
                         e.printStackTrace();
                     }
                 }
-            });
-        ModLabeledToggleButton rewardLeft =
-            new ModLabeledToggleButton(languagePack.getUIString(modID + ":Settings").TEXT[5], 375.0F, 350.0F,
+            }), new ModLabeledToggleButton(languagePack.getUIString(modID + ":Settings").TEXT[5], 375.0F, 350.0F,
                 Settings.CREAM_COLOR, FontHelper.charDescFont, isEvenIfRewardLeft(), settingsPanel, l -> {
             }, button -> {
                 if(config != null) {
@@ -154,9 +138,7 @@ public class SettingsMenu {
                         e.printStackTrace();
                     }
                 }
-            });
-        ModLabeledToggleButton clickInShop =
-            new ModLabeledToggleButton(languagePack.getUIString(modID + ":Settings").TEXT[6], 375.0F, 300.0F,
+            }), new ModLabeledToggleButton(languagePack.getUIString(modID + ":Settings").TEXT[6], 375.0F, 300.0F,
                 Settings.CREAM_COLOR, FontHelper.charDescFont, isClickInShop(), settingsPanel, l -> {
             }, button -> {
                 if(config != null) {
@@ -167,9 +149,7 @@ public class SettingsMenu {
                         e.printStackTrace();
                     }
                 }
-            });
-        ModLabeledToggleButton clickProceed =
-            new ModLabeledToggleButton(languagePack.getUIString(modID + ":Settings").TEXT[7], 350.0F, 250.0F,
+            }), new ModLabeledToggleButton(languagePack.getUIString(modID + ":Settings").TEXT[7], 350.0F, 250.0F,
                 Settings.CREAM_COLOR, FontHelper.charDescFont, isAutoClickProceed(), settingsPanel, l -> {
             }, button -> {
                 if(config != null) {
@@ -180,7 +160,7 @@ public class SettingsMenu {
                         e.printStackTrace();
                     }
                 }
-            });
+            })};
         ModMinMaxSlider slider =
             new ModMinMaxSlider(languagePack.getUIString(modID + ":Settings").TEXT[8], 800.0F, 700.0F, 0f, 1f,
                 getAutoActionCooldown(), "%.2fs", settingsPanel, s -> {
@@ -193,17 +173,11 @@ public class SettingsMenu {
                     }
                 }
             });
-        settingsPanel.addUIElement(endTurn);
-        settingsPanel.addUIElement(openChest);
-        settingsPanel.addUIElement(clickEvent);
-        settingsPanel.addUIElement(clickMap);
-        settingsPanel.addUIElement(rewardLeft);
-        settingsPanel.addUIElement(clickInShop);
-        settingsPanel.addUIElement(takeReward);
-        settingsPanel.addUIElement(evenBottles);
-        settingsPanel.addUIElement(clickProceed);
+        for (ModLabeledToggleButton b : buttons) {
+            settingsPanel.addUIElement(b);
+        }
         settingsPanel.addUIElement(slider);
-        settingsPanel.addUIElement(takeRelics);
+
         BaseMod.registerModBadge(ImageMaster.loadImage("modBadge.png"), "AutomateTheSpire", "Dongwon", "",
             settingsPanel);
     }

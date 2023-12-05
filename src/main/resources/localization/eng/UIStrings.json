@@ -4,13 +4,13 @@
       "Automatically end turn",
       "Automatically open all chests",
       "Automatically click event option",
-      "Automatically take golds,potions",
+      "Automatically take golds and potions",
       "Automatically click map nodes",
       "click if there are rewards left",
       "click in shop",
       "Automatically click proceed button",
       "Auto action delay",
-      "Take Bottle relics and upgrade relics",
+      "Take Bottle relics, Whetstone and war paint",
       "Also take relics"
     ],
     "EXTRA_TEXT": [
