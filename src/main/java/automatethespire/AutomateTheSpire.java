@@ -42,7 +42,6 @@ import static com.megacrit.cardcrawl.dungeons.AbstractDungeon.*;
 @SpireInitializer
 public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStartPostDrawSubscriber,
     PostBattleSubscriber, PostDeathSubscriber, PostInitializeSubscriber, EditStringsSubscriber {
-    public static final float cooldown = 0f;
     public static final String AutoEndTurn = "AutoEndTurn";
     public static final String AutoOpenChest = "AutoOpenChest";
     public static final String AutoClickMapNode = "AutoClickMapNode";
@@ -64,14 +63,13 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
     private final Localization localization = new Localization();
     private final String EvenTheBottles = "EvenTheBottles";
     LargeDialogOptionButton prevButton;
-    CurrentScreen prevscreen = CurrentScreen.NONE;
     private AbstractRoom currRoom;
     private float cooldownLeft = 0f;
     private boolean turnFullyBegun = false;
     private boolean bossChestOpened = false;
     /*----------Localization----------*/
     private boolean mapNodePressed = false;
-    private float eventButtonDelayLeft = 0.1f;
+    private float eventButtonDelayLeft = 0;
     private AbstractRoom.RoomPhase prevPhase;
     private Class<? extends AbstractRoom> prevRoom;
     private CurrentScreen prevScreen;
@@ -272,19 +270,15 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
             return FailCode.Fail;
         }
         ArrayList<LargeDialogOptionButton> activeButtons = EventScreenUtils.getActiveEventButtons();
-        prevscreen = prevscreen == screen ? prevscreen : screen;
-        if(prevscreen == CurrentScreen.GRID) {
-            eventButtonDelayLeft = eventButtonDelay;
-            return FailCode.Fail;
-        }
-
-
         if(activeButtons.size() != 1) {
             return FailCode.Fail;
         }
+        if(screen == CurrentScreen.GRID) {
+            eventButtonDelayLeft = eventButtonDelay;
+        }
 
         eventButtonDelayLeft -= Math.max(Gdx.graphics.getDeltaTime(), getAutoActionCooldown());
-        if(!(eventButtonDelayLeft <= 0) || activeButtons.get(0) == prevButton) {
+        if(eventButtonDelayLeft > 0 || activeButtons.get(0) == prevButton) {
             return FailCode.Fail;
         }
         if(cooldownLeft > 0) {
@@ -428,7 +422,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
     public void receivePostInitialize() {
         ModPanel settingsPanel = new ModPanel();
         ModLabeledToggleButton endTurn =
-            new ModLabeledToggleButton(languagePack.getUIString("AutoSpire:Settings").TEXT[0], 350.0F, 700.0F,
+            new ModLabeledToggleButton(languagePack.getUIString(modID+":Settings").TEXT[0], 350.0F, 700.0F,
                 Settings.CREAM_COLOR, FontHelper.charDescFont, isAutoEndTurn(), settingsPanel, l -> {
 
             }, button -> {
@@ -442,7 +436,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
                 }
             });
         ModLabeledToggleButton openChest =
-            new ModLabeledToggleButton(languagePack.getUIString("AutoSpire:Settings").TEXT[1], 350.0F, 650.0F,
+            new ModLabeledToggleButton(languagePack.getUIString(modID+":Settings").TEXT[1], 350.0F, 650.0F,
                 Settings.CREAM_COLOR, FontHelper.charDescFont, isAutoOpenChest(), settingsPanel, l -> {
             }, button -> {
                 if(modConfig != null) {
@@ -455,7 +449,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
                 }
             });
         ModLabeledToggleButton clickEvent =
-            new ModLabeledToggleButton(languagePack.getUIString("AutoSpire:Settings").TEXT[2], 350.0F, 600.0F,
+            new ModLabeledToggleButton(languagePack.getUIString(modID+":Settings").TEXT[2], 350.0F, 600.0F,
                 Settings.CREAM_COLOR, FontHelper.charDescFont, isAutoClickEvent(), settingsPanel, l -> {
             }, button -> {
                 if(modConfig != null) {
@@ -468,7 +462,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
                 }
             });
         ModLabeledToggleButton takeReward =
-            new ModLabeledToggleButton(languagePack.getUIString("AutoSpire:Settings").TEXT[3], 350.0F, 550.0F,
+            new ModLabeledToggleButton(languagePack.getUIString(modID+":Settings").TEXT[3], 350.0F, 550.0F,
                 Settings.CREAM_COLOR, FontHelper.charDescFont, isAutoTakeRewards(), settingsPanel, l -> {
             }, button -> {
                 if(modConfig != null) {
@@ -481,7 +475,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
                 }
             });
         ModLabeledToggleButton evenBottles =
-            new ModLabeledToggleButton(languagePack.getUIString("AutoSpire:Settings").TEXT[9], 375.0F, 500.0F,
+            new ModLabeledToggleButton(languagePack.getUIString(modID+":Settings").TEXT[9], 375.0F, 500.0F,
                 Settings.CREAM_COLOR, FontHelper.charDescFont, isEvenTheBottles(), settingsPanel, l -> {
             }, button -> {
                 if(modConfig != null) {
@@ -494,7 +488,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
                 }
             });
         ModLabeledToggleButton clickMap =
-            new ModLabeledToggleButton(languagePack.getUIString("AutoSpire:Settings").TEXT[4], 350.0F, 450.0F,
+            new ModLabeledToggleButton(languagePack.getUIString(modID+":Settings").TEXT[4], 350.0F, 450.0F,
                 Settings.CREAM_COLOR, FontHelper.charDescFont, isAutoClickMap(), settingsPanel, l -> {
             }, button -> {
                 if(modConfig != null) {
@@ -507,7 +501,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
                 }
             });
         ModLabeledToggleButton rewardLeft =
-            new ModLabeledToggleButton(languagePack.getUIString("AutoSpire:Settings").TEXT[5], 375.0F, 400.0F,
+            new ModLabeledToggleButton(languagePack.getUIString(modID+":Settings").TEXT[5], 375.0F, 400.0F,
                 Settings.CREAM_COLOR, FontHelper.charDescFont, isEvenIfRewardLeft(), settingsPanel, l -> {
             }, button -> {
                 if(modConfig != null) {
@@ -520,7 +514,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
                 }
             });
         ModLabeledToggleButton clickInShop =
-            new ModLabeledToggleButton(languagePack.getUIString("AutoSpire:Settings").TEXT[6], 375.0F, 350.0F,
+            new ModLabeledToggleButton(languagePack.getUIString(modID+":Settings").TEXT[6], 375.0F, 350.0F,
                 Settings.CREAM_COLOR, FontHelper.charDescFont, isClickInShop(), settingsPanel, l -> {
             }, button -> {
                 if(modConfig != null) {
@@ -533,7 +527,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
                 }
             });
         ModLabeledToggleButton clickProceed =
-            new ModLabeledToggleButton(languagePack.getUIString("AutoSpire:Settings").TEXT[7], 350.0F, 300.0F,
+            new ModLabeledToggleButton(languagePack.getUIString(modID+":Settings").TEXT[7], 350.0F, 300.0F,
                 Settings.CREAM_COLOR, FontHelper.charDescFont, isAutoClickProceed(), settingsPanel, l -> {
             }, button -> {
                 if(modConfig != null) {
@@ -546,7 +540,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
                 }
             });
         ModMinMaxSlider slider =
-            new ModMinMaxSlider(languagePack.getUIString("AutoSpire:Settings").TEXT[8], 800.0F, 700.0F, 0f, 1f,
+            new ModMinMaxSlider(languagePack.getUIString(modID+":Settings").TEXT[8], 800.0F, 700.0F, 0f, 1f,
                 getAutoActionCooldown(), "%.2fs", settingsPanel, s -> {
                 if(modConfig != null) {
                     modConfig.setFloat(AutoActionCooldown, s.getValue());
