@@ -9,7 +9,8 @@
       "click if there are rewards left",
       "click in shop",
       "Automatically click proceed button",
-      "Auto action delay"
+      "Auto action delay",
+      "Take Bottle relics and upgrade relics"
     ],
     "EXTRA_TEXT": [
       "This is another",

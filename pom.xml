@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <properties>
-        <modID>AutoSpire</modID>
+        <modID>AutomateTheSpire</modID>
         <author>Dongwon</author>
 
         <!-- Change the path for your system to match your Steam installation. -->
