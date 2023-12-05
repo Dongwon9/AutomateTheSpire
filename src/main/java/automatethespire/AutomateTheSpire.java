@@ -27,6 +27,7 @@ import com.megacrit.cardcrawl.potions.PotionSlot;
 import com.megacrit.cardcrawl.rewards.RewardItem;
 import com.megacrit.cardcrawl.rewards.chests.AbstractChest;
 import com.megacrit.cardcrawl.rooms.*;
+import com.megacrit.cardcrawl.screens.select.BossRelicSelectScreen;
 import com.megacrit.cardcrawl.ui.buttons.LargeDialogOptionButton;
 import com.megacrit.cardcrawl.ui.buttons.ProceedButton;
 import org.apache.logging.log4j.LogManager;
@@ -75,6 +76,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
     private CurrentScreen prevScreen;
     private GameActionManager.Phase prevActionPhase;
     private SpireConfig modConfig;
+    private float proceedDelayLeft = 0.1f;
 
     public AutomateTheSpire() {
         BaseMod.subscribe(this); //This will make BaseMod trigger all the subscribers
@@ -220,13 +222,13 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
             success = success || code == FailCode.Success;
             cooldownFail = cooldownFail || code == FailCode.CooldownFail;
         }
-        if(isAutoTakeRewards()) {
-            code = TakeCombatReward();
+        if(isAutoClickProceed()) {
+            code = ClickProceed();
             success = success || code == FailCode.Success;
             cooldownFail = cooldownFail || code == FailCode.CooldownFail;
         }
-        if(isAutoClickProceed()) {
-            code = ClickProceed();
+        if(isAutoTakeRewards()) {
+            code = TakeCombatReward();
             success = success || code == FailCode.Success;
             cooldownFail = cooldownFail || code == FailCode.CooldownFail;
         }
@@ -343,14 +345,27 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
     }
 
     private FailCode ClickProceed() {
-        if(!(currRoom instanceof RestRoom) &&
-            !((id.equals("TheEnding") || id.equals("TheBeyond")) && (currRoom instanceof MonsterRoomBoss)) &&
-            !(currRoom instanceof TreasureRoomBoss) &&
+        final float proceedDelay = 0.2f;
+        if(!(currRoom instanceof RestRoom) && !((currRoom instanceof TreasureRoomBoss) &&
+            ((TreasureRoomBoss)currRoom).chest.isOpen) &&
             !((id.equals("TheCity") || id.equals("Exordium")) && (currRoom instanceof MonsterRoomBoss) &&
                 combatRewardScreen.hasTakenAll) || currRoom instanceof RestRoom && !CampfireUI.hidden ||
             (boolean) ReflectionHacks.getPrivate(overlayMenu.proceedButton, ProceedButton.class, "isHidden")) {
             return FailCode.Fail;
         }
+        if((id.equals("TheCity") || id.equals("Exordium")) && currRoom instanceof MonsterRoomBoss) {
+            if(!combatRewardScreen.hasTakenAll) {
+                proceedDelayLeft = proceedDelay;
+            } else {
+                proceedDelayLeft -= Math.max(Gdx.graphics.getDeltaTime(), getAutoActionCooldown());
+            }
+            if(proceedDelayLeft > 0) {
+                return FailCode.Fail;
+            }
+        } else {
+            proceedDelayLeft = 0;
+        }
+
         if(cooldownLeft > 0) {
             return FailCode.CooldownFail;
         }
@@ -422,7 +437,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
     public void receivePostInitialize() {
         ModPanel settingsPanel = new ModPanel();
         ModLabeledToggleButton endTurn =
-            new ModLabeledToggleButton(languagePack.getUIString(modID+":Settings").TEXT[0], 350.0F, 700.0F,
+            new ModLabeledToggleButton(languagePack.getUIString(modID + ":Settings").TEXT[0], 350.0F, 700.0F,
                 Settings.CREAM_COLOR, FontHelper.charDescFont, isAutoEndTurn(), settingsPanel, l -> {
 
             }, button -> {
@@ -436,7 +451,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
                 }
             });
         ModLabeledToggleButton openChest =
-            new ModLabeledToggleButton(languagePack.getUIString(modID+":Settings").TEXT[1], 350.0F, 650.0F,
+            new ModLabeledToggleButton(languagePack.getUIString(modID + ":Settings").TEXT[1], 350.0F, 650.0F,
                 Settings.CREAM_COLOR, FontHelper.charDescFont, isAutoOpenChest(), settingsPanel, l -> {
             }, button -> {
                 if(modConfig != null) {
@@ -449,7 +464,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
                 }
             });
         ModLabeledToggleButton clickEvent =
-            new ModLabeledToggleButton(languagePack.getUIString(modID+":Settings").TEXT[2], 350.0F, 600.0F,
+            new ModLabeledToggleButton(languagePack.getUIString(modID + ":Settings").TEXT[2], 350.0F, 600.0F,
                 Settings.CREAM_COLOR, FontHelper.charDescFont, isAutoClickEvent(), settingsPanel, l -> {
             }, button -> {
                 if(modConfig != null) {
@@ -462,7 +477,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
                 }
             });
         ModLabeledToggleButton takeReward =
-            new ModLabeledToggleButton(languagePack.getUIString(modID+":Settings").TEXT[3], 350.0F, 550.0F,
+            new ModLabeledToggleButton(languagePack.getUIString(modID + ":Settings").TEXT[3], 350.0F, 550.0F,
                 Settings.CREAM_COLOR, FontHelper.charDescFont, isAutoTakeRewards(), settingsPanel, l -> {
             }, button -> {
                 if(modConfig != null) {
@@ -475,7 +490,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
                 }
             });
         ModLabeledToggleButton evenBottles =
-            new ModLabeledToggleButton(languagePack.getUIString(modID+":Settings").TEXT[9], 375.0F, 500.0F,
+            new ModLabeledToggleButton(languagePack.getUIString(modID + ":Settings").TEXT[9], 375.0F, 500.0F,
                 Settings.CREAM_COLOR, FontHelper.charDescFont, isEvenTheBottles(), settingsPanel, l -> {
             }, button -> {
                 if(modConfig != null) {
@@ -488,7 +503,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
                 }
             });
         ModLabeledToggleButton clickMap =
-            new ModLabeledToggleButton(languagePack.getUIString(modID+":Settings").TEXT[4], 350.0F, 450.0F,
+            new ModLabeledToggleButton(languagePack.getUIString(modID + ":Settings").TEXT[4], 350.0F, 450.0F,
                 Settings.CREAM_COLOR, FontHelper.charDescFont, isAutoClickMap(), settingsPanel, l -> {
             }, button -> {
                 if(modConfig != null) {
@@ -501,7 +516,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
                 }
             });
         ModLabeledToggleButton rewardLeft =
-            new ModLabeledToggleButton(languagePack.getUIString(modID+":Settings").TEXT[5], 375.0F, 400.0F,
+            new ModLabeledToggleButton(languagePack.getUIString(modID + ":Settings").TEXT[5], 375.0F, 400.0F,
                 Settings.CREAM_COLOR, FontHelper.charDescFont, isEvenIfRewardLeft(), settingsPanel, l -> {
             }, button -> {
                 if(modConfig != null) {
@@ -514,7 +529,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
                 }
             });
         ModLabeledToggleButton clickInShop =
-            new ModLabeledToggleButton(languagePack.getUIString(modID+":Settings").TEXT[6], 375.0F, 350.0F,
+            new ModLabeledToggleButton(languagePack.getUIString(modID + ":Settings").TEXT[6], 375.0F, 350.0F,
                 Settings.CREAM_COLOR, FontHelper.charDescFont, isClickInShop(), settingsPanel, l -> {
             }, button -> {
                 if(modConfig != null) {
@@ -527,7 +542,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
                 }
             });
         ModLabeledToggleButton clickProceed =
-            new ModLabeledToggleButton(languagePack.getUIString(modID+":Settings").TEXT[7], 350.0F, 300.0F,
+            new ModLabeledToggleButton(languagePack.getUIString(modID + ":Settings").TEXT[7], 350.0F, 300.0F,
                 Settings.CREAM_COLOR, FontHelper.charDescFont, isAutoClickProceed(), settingsPanel, l -> {
             }, button -> {
                 if(modConfig != null) {
@@ -540,7 +555,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
                 }
             });
         ModMinMaxSlider slider =
-            new ModMinMaxSlider(languagePack.getUIString(modID+":Settings").TEXT[8], 800.0F, 700.0F, 0f, 1f,
+            new ModMinMaxSlider(languagePack.getUIString(modID + ":Settings").TEXT[8], 800.0F, 700.0F, 0f, 1f,
                 getAutoActionCooldown(), "%.2fs", settingsPanel, s -> {
                 if(modConfig != null) {
                     modConfig.setFloat(AutoActionCooldown, s.getValue());
@@ -566,39 +581,39 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
 
     }
 
-    private boolean isClickInShop() {
+    public boolean isClickInShop() {
         return modConfig != null && modConfig.getBool(EvenIfInShop);
     }
 
-    private boolean isAutoEndTurn() {
+    public boolean isAutoEndTurn() {
         return modConfig != null && modConfig.getBool(AutoEndTurn);
     }
 
-    private boolean isAutoOpenChest() {
+    public boolean isAutoOpenChest() {
         return modConfig != null && modConfig.getBool(AutoOpenChest);
     }
 
-    private boolean isAutoTakeRewards() {
+    public boolean isAutoTakeRewards() {
         return modConfig != null && modConfig.getBool(AutoTakeRewards);
     }
 
-    private boolean isEvenTheBottles() {
+    public boolean isEvenTheBottles() {
         return modConfig != null && modConfig.getBool(EvenTheBottles);
     }
 
-    private boolean isEvenIfRewardLeft() {
+    public boolean isEvenIfRewardLeft() {
         return modConfig != null && modConfig.getBool(EvenIfRewardLeft);
     }
 
-    private boolean isAutoClickMap() {
+    public boolean isAutoClickMap() {
         return modConfig != null && modConfig.getBool(AutoClickMapNode);
     }
 
-    private boolean isAutoClickEvent() {
+    public boolean isAutoClickEvent() {
         return modConfig != null && modConfig.getBool(AutoClickEvent);
     }
 
-    private boolean isAutoClickProceed() {
+    public boolean isAutoClickProceed() {
         return modConfig != null && modConfig.getBool(AutoClickProceed);
     }
 
