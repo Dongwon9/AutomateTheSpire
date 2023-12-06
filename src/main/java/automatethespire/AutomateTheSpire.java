@@ -65,7 +65,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
     private CurrentScreen prevScreen;
     private GameActionManager.Phase prevActionPhase;
     private SpireConfig modConfig;
-    private float proceedDelayLeft = 0.1f;
+    private float proceedDelayLeft = 0.2f;
 
     public AutomateTheSpire() {
         BaseMod.subscribe(this); //This will make BaseMod trigger all the subscribers
@@ -237,15 +237,19 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
             prevRoom = currRoom.getClass();
         }
         if(prevScreen != screen) {
-            logger.info("Screen " + screen);
+            logger.info("Screen : " + screen);
             prevScreen = screen;
         }
         if(prevActionPhase != actionManager.phase) {
             logger.info("ActionPhase : " + actionManager.phase);
             prevActionPhase = actionManager.phase;
         }
+        if(prevhasTakenAll != combatRewardScreen.hasTakenAll){
+            logger.info("TakenAll : " + combatRewardScreen.hasTakenAll);
+            prevhasTakenAll = combatRewardScreen.hasTakenAll;
+        }
     }
-
+   private boolean prevhasTakenAll;
     private FailCode ClickEventButton() {
         final float eventButtonDelay = 0.5f;
         if(!(getCurrRoom() instanceof EventRoom) && !(getCurrRoom() instanceof NeowRoom) &&
@@ -340,19 +344,15 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
         if(currRoom instanceof TreasureRoomBoss && !((TreasureRoomBoss) currRoom).chest.isOpen) {
             return FailCode.Fail;
         }
-        if(id.equals("TheCity") || id.equals("Exordium")) {
-            if(currRoom instanceof MonsterRoomBoss && !combatRewardScreen.hasTakenAll) {
-                return FailCode.Fail;
-            }
-        }
         if((boolean) ReflectionHacks.getPrivate(overlayMenu.proceedButton, ProceedButton.class, "isHidden")) {
             return FailCode.Fail;
         }
         if((id.equals("TheCity") || id.equals("Exordium")) && currRoom instanceof MonsterRoomBoss &&
-            combatRewardScreen.hasTakenAll) {
+            combatRewardScreen.hasTakenAll && getMonsters().areMonstersBasicallyDead()) {
             proceedDelayLeft -= Math.max(Gdx.graphics.getDeltaTime(), settings.getAutoActionCooldown());
         } else {
             proceedDelayLeft = proceedDelay;
+
         }
         if((id.equals("TheCity") || id.equals("Exordium")) && currRoom instanceof MonsterRoomBoss &&
             proceedDelayLeft > 0) {
