@@ -347,14 +347,14 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
         if((boolean) ReflectionHacks.getPrivate(overlayMenu.proceedButton, ProceedButton.class, "isHidden")) {
             return FailCode.Fail;
         }
-        if((id.equals("TheCity") || id.equals("Exordium")) && currRoom instanceof MonsterRoomBoss &&
+        if( currRoom instanceof MonsterRoomBoss &&
             combatRewardScreen.hasTakenAll && getMonsters().areMonstersBasicallyDead()) {
             proceedDelayLeft -= Math.max(Gdx.graphics.getDeltaTime(), settings.getAutoActionCooldown());
         } else {
             proceedDelayLeft = proceedDelay;
 
         }
-        if((id.equals("TheCity") || id.equals("Exordium")) && currRoom instanceof MonsterRoomBoss &&
+        if(currRoom instanceof MonsterRoomBoss &&
             proceedDelayLeft > 0) {
             return FailCode.Fail;
         }
