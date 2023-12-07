@@ -162,7 +162,7 @@ public class SettingsMenu {
                 }
             })};
         ModMinMaxSlider slider =
-            new ModMinMaxSlider(languagePack.getUIString(modID + ":Settings").TEXT[8], 800.0F, 700.0F, 0f, 1f,
+            new ModMinMaxSlider(languagePack.getUIString(modID + ":Settings").TEXT[8], 800.0F, 700.0F, 0.1f, 1f,
                 getAutoActionCooldown(), "%.2fs", settingsPanel, s -> {
                 if(config != null) {
                     config.setFloat(AutoActionCooldown, s.getValue());
@@ -183,11 +183,11 @@ public class SettingsMenu {
     }
 
     public float getAutoActionCooldown() {
-        return config == null ? 0f : config.getFloat(AutoActionCooldown);
+        return config == null ? 0.1f : Math.max(config.getFloat(AutoActionCooldown), 0.1f);
     }
 
     public boolean isAutoTakeRelics() {
-        return config != null & config.getBool("AutoTakeRelics");
+        return config != null && config.getBool("AutoTakeRelics");
     }
 
     public boolean isClickInShop() {

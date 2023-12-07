@@ -1,6 +1,5 @@
 package automatethespire.patches;
 
-
 import com.evacipated.cardcrawl.modthespire.lib.*;
 import com.evacipated.cardcrawl.modthespire.patcher.PatchingException;
 import com.megacrit.cardcrawl.helpers.Hitbox;
@@ -17,7 +16,7 @@ public class DungeonMapPatch {
 
     @SpireInsertPatch(locator = Locator.class)
     public static void Insert(DungeonMap _instance) {
-        if (doBossHover) {
+        if(doBossHover) {
             _instance.bossHb.hovered = true;
             InputHelper.justClickedLeft = true;
             doBossHover = false;
