@@ -9,7 +9,6 @@ import com.badlogic.gdx.Gdx;
 import com.evacipated.cardcrawl.modthespire.Loader;
 import com.evacipated.cardcrawl.modthespire.ModInfo;
 import com.evacipated.cardcrawl.modthespire.Patcher;
-import com.evacipated.cardcrawl.modthespire.lib.SpireConfig;
 import com.evacipated.cardcrawl.modthespire.lib.SpireInitializer;
 import com.megacrit.cardcrawl.actions.GameActionManager;
 import com.megacrit.cardcrawl.actions.watcher.PressEndTurnButtonAction;
@@ -26,7 +25,6 @@ import com.megacrit.cardcrawl.potions.PotionSlot;
 import com.megacrit.cardcrawl.rewards.RewardItem;
 import com.megacrit.cardcrawl.rewards.chests.AbstractChest;
 import com.megacrit.cardcrawl.rooms.*;
-import com.megacrit.cardcrawl.screens.select.BossRelicSelectScreen;
 import com.megacrit.cardcrawl.ui.buttons.LargeDialogOptionButton;
 import com.megacrit.cardcrawl.ui.buttons.ProceedButton;
 import org.apache.logging.log4j.LogManager;
@@ -47,6 +45,8 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
     public static String modID; //Edit your pom.xml to change this
     public static final Logger logger = LogManager.getLogger(modID);
     public static SettingsMenu settings;
+    public static float cooldownLeft = 0f;
+    static MapRoomNode prevMapNode = null;
 
     static {
         loadModInfo();
@@ -54,8 +54,8 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
 
     private final Localization localization = new Localization();
     LargeDialogOptionButton prevButton;
+    ArrayList<MapRoomNode> choices = null;
     private AbstractRoom currRoom;
-    public static float cooldownLeft = 0f;
     private boolean turnFullyBegun = false;
     private boolean bossChestOpened = false;
     /*----------Localization----------*/
@@ -130,7 +130,6 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
         }
         return choices;
     }
-
 
     private FailCode TakeCombatReward() {
         if(screen != CurrentScreen.COMBAT_REWARD) {
@@ -232,7 +231,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
         } else {
             cooldownLeft = settings.getAutoActionCooldown();
         }
-       DebugRoomAndPhaseInfo();
+        //DebugRoomAndPhaseInfo();
     }
 
     private void DebugRoomAndPhaseInfo() {
@@ -256,7 +255,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
             logger.info("TakenAll : " + combatRewardScreen.hasTakenAll);
             prevhasTakenAll = combatRewardScreen.hasTakenAll;
         }
-        for(RewardItem r : combatRewardScreen.rewards){
+        for (RewardItem r : combatRewardScreen.rewards) {
             logger.info(r);
         }
     }
@@ -294,10 +293,14 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
         if(currRoom instanceof ShopRoom && !settings.isClickInShop()) {
             return FailCode.Fail;
         }
-        ArrayList<MapRoomNode> choices = getMapScreenNodeChoices();
+
         if(currMapNode.y == 14 || (id.equals("TheEnding") && currMapNode.y == 2)) {
             DungeonMapPatch.doBossHover = true;
             return FailCode.Success;
+        }
+        if(prevMapNode != getCurrMapNode()) {
+            prevMapNode = getCurrMapNode();
+            choices = getMapScreenNodeChoices();
         }
         if(choices.size() != 1) {
             return FailCode.Fail;
@@ -358,10 +361,10 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
         if(currRoom instanceof ShopRoom) {
             return FailCode.Fail;
         }
-        if(screen != CurrentScreen.NONE &&screen != CurrentScreen.COMBAT_REWARD){
+        if(screen != CurrentScreen.NONE && screen != CurrentScreen.COMBAT_REWARD) {
             return FailCode.Fail;
         }
-        if(currRoom instanceof TreasureRoomBoss){
+        if(currRoom instanceof TreasureRoomBoss) {
             proceedDelayLeft -= Gdx.graphics.getDeltaTime();
             if(proceedDelayLeft > 0) {
                 return FailCode.Fail;
