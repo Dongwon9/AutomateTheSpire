@@ -31,6 +31,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.scannotation.AnnotationDB;
 
+import java.nio.channels.NonWritableChannelException;
 import java.util.*;
 
 import static com.megacrit.cardcrawl.dungeons.AbstractDungeon.*;
@@ -255,9 +256,6 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
             logger.info("TakenAll : " + combatRewardScreen.hasTakenAll);
             prevhasTakenAll = combatRewardScreen.hasTakenAll;
         }
-        for (RewardItem r : combatRewardScreen.rewards) {
-            logger.info(r);
-        }
     }
 
     private FailCode ClickEventButton() {
@@ -358,7 +356,8 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
         if(!combatRewardScreen.rewards.isEmpty()) {
             return FailCode.Fail;
         }
-        if(currRoom instanceof ShopRoom) {
+        if(!(currRoom instanceof RestRoom || currRoom instanceof MonsterRoom || currRoom instanceof TreasureRoom ||
+            currRoom instanceof EventRoom || currRoom instanceof TreasureRoomBoss || currRoom instanceof NeowRoom )){
             return FailCode.Fail;
         }
         if(screen != CurrentScreen.NONE && screen != CurrentScreen.COMBAT_REWARD) {
