@@ -20,7 +20,6 @@ import com.megacrit.cardcrawl.helpers.Hitbox;
 import com.megacrit.cardcrawl.map.MapRoomNode;
 import com.megacrit.cardcrawl.neow.NeowRoom;
 import com.megacrit.cardcrawl.potions.AbstractPotion;
-import com.megacrit.cardcrawl.potions.FairyPotion;
 import com.megacrit.cardcrawl.potions.PotionSlot;
 import com.megacrit.cardcrawl.rewards.RewardItem;
 import com.megacrit.cardcrawl.rewards.chests.AbstractChest;
@@ -31,7 +30,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.scannotation.AnnotationDB;
 
-import java.nio.channels.NonWritableChannelException;
 import java.util.*;
 
 import static com.megacrit.cardcrawl.dungeons.AbstractDungeon.*;
@@ -273,19 +271,29 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
         if(cooldownLeft > 0) {
             return FailCode.CooldownFail;
         }
-        activeButtons.get(0).pressed = true;
         prevButton = activeButtons.get(0);
+        activeButtons.get(0).pressed = true;
         logger.info("Pressed Event Option");
         return FailCode.Success;
     }
 
     private FailCode ClickMapNode() {
+        if(currRoom instanceof NeowRoom) {
+            if(currRoom.phase == AbstractRoom.RoomPhase.EVENT) {
+                proceedDelayLeft = 0.5f;
+            } else {
+                proceedDelayLeft -= Gdx.graphics.getDeltaTime();
+                if(proceedDelayLeft > 0) {
+                    return FailCode.Fail;
+                }
+            }
+        }
         if(screen != CurrentScreen.MAP) {
             mapNodePressed = false;
             return FailCode.Fail;
         }
         if(mapNodePressed || (!combatRewardScreen.rewards.isEmpty() && !settings.isEvenIfRewardLeft()) ||
-            dungeonMapScreen.clicked || !firstRoomChosen) {
+            dungeonMapScreen.clicked) {
             return FailCode.Fail;
         }
         if(currRoom instanceof ShopRoom && !settings.isClickInShop()) {
@@ -357,7 +365,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
             return FailCode.Fail;
         }
         if(!(currRoom instanceof RestRoom || currRoom instanceof MonsterRoom || currRoom instanceof TreasureRoom ||
-            currRoom instanceof EventRoom || currRoom instanceof TreasureRoomBoss || currRoom instanceof NeowRoom )){
+            currRoom instanceof EventRoom || currRoom instanceof TreasureRoomBoss || currRoom instanceof NeowRoom)) {
             return FailCode.Fail;
         }
         if(screen != CurrentScreen.NONE && screen != CurrentScreen.COMBAT_REWARD) {
@@ -404,7 +412,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
             }
 
             p = var1.next();
-        } while (p instanceof PotionSlot || p instanceof FairyPotion);
+        } while (p instanceof PotionSlot || !p.canUse());
         return true;
     }
 

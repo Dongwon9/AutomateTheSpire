@@ -30,7 +30,7 @@ public class MapRoomNodeHoverPatch {
     private static class Locator extends SpireInsertLocator {
         public int[] Locate(CtBehavior ctMethodToPatch) throws CannotCompileException, PatchingException {
             Matcher.MethodCallMatcher methodCallMatcher = new Matcher.MethodCallMatcher(Hitbox.class, "update");
-            int[] results = LineFinder.findInOrder(ctMethodToPatch, new ArrayList(), methodCallMatcher);
+            int[] results = LineFinder.findInOrder(ctMethodToPatch, new ArrayList<>(), methodCallMatcher);
             results[0] = results[0] + 1;
             return results;
         }
