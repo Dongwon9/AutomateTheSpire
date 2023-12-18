@@ -32,12 +32,13 @@ public class Localization {
         */
         loadLocalization(
             defaultLanguage); //no exception catching for default localization; you better have at least one that works.
-        if(!defaultLanguage.equals(getLangString())) {
-            try {
-                loadLocalization(getLangString());
-            } catch (GdxRuntimeException e) {
-                e.printStackTrace();
-            }
+        if(defaultLanguage.equals(getLangString())) {
+            return;
+        }
+        try {
+            loadLocalization(getLangString());
+        } catch (GdxRuntimeException e) {
+            e.printStackTrace();
         }
     }
 }

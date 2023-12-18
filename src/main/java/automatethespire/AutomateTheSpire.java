@@ -1,5 +1,6 @@
 package automatethespire;
 
+import automatethespire.patches.DebugInfo;
 import automatethespire.patches.DungeonMapPatch;
 import automatethespire.patches.MapRoomNodeHoverPatch;
 import basemod.BaseMod;
@@ -14,7 +15,6 @@ import com.megacrit.cardcrawl.actions.GameActionManager;
 import com.megacrit.cardcrawl.actions.watcher.PressEndTurnButtonAction;
 import com.megacrit.cardcrawl.cards.AbstractCard;
 import com.megacrit.cardcrawl.core.CardCrawlGame;
-import com.megacrit.cardcrawl.core.Settings;
 import com.megacrit.cardcrawl.dungeons.AbstractDungeon;
 import com.megacrit.cardcrawl.helpers.Hitbox;
 import com.megacrit.cardcrawl.map.MapRoomNode;
@@ -36,7 +36,7 @@ import static com.megacrit.cardcrawl.dungeons.AbstractDungeon.*;
 
 @SpireInitializer
 public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStartPostDrawSubscriber,
-    PostBattleSubscriber, PostDeathSubscriber, PostInitializeSubscriber, EditStringsSubscriber, PreStartGameSubscriber {
+    PostInitializeSubscriber, EditStringsSubscriber, OnStartBattleSubscriber {
 
     private static final String resourcesFolder = "automatethespire";
 
@@ -45,6 +45,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
     public static final Logger logger = LogManager.getLogger(modID);
     public static SettingsMenu settings;
     public static float cooldownLeft = 0f;
+    public static AbstractRoom currRoom;
     static MapRoomNode prevMapNode = null;
 
     static {
@@ -52,37 +53,23 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
     }
 
     private final Localization localization = new Localization();
+    private final DebugInfo debugInfo;
     LargeDialogOptionButton prevButton;
     ArrayList<MapRoomNode> choices = null;
-    private AbstractRoom currRoom;
     private boolean turnFullyBegun = false;
     private boolean bossChestOpened = false;
-    /*----------Localization----------*/
     private boolean mapNodePressed = false;
-    private AbstractRoom.RoomPhase prevPhase;
-    private Class<? extends AbstractRoom> prevRoom;
-    private CurrentScreen prevScreen;
-    private GameActionManager.Phase prevActionPhase;
     private float proceedDelayLeft = 0.1f;
-    private boolean prevhasTakenAll;
 
     public AutomateTheSpire() {
-        BaseMod.subscribe(this); //This will make BaseMod trigger all the subscribers
-        // at their appropriate times.
+        BaseMod.subscribe(this);
         logger.info(modID + " subscribed to BaseMod.");
         settings = new SettingsMenu();
-    }
-
-    public static String makeID(String id) {
-        return modID + ":" + id;
+        debugInfo = new DebugInfo();
     }
 
     public static void initialize() {
         new AutomateTheSpire();
-    }
-
-    private static String getLangString() {
-        return Settings.language.name().toLowerCase();
     }
 
     private static void loadModInfo() {
@@ -147,17 +134,19 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
                 if(!settings.isAutoTakeRelics()) {
                     continue;
                 }
-                if(!settings.isEvenTheBottles()) {
-                    if(reward.relic.relicId.contains("Bottled") || reward.relic.relicId.equals("War Paint") ||
-                        reward.relic.relicId.equals("Whetstone")) {
-                        continue;
-                    }
+                if(!settings.isEvenTheBottles() &&
+                    (reward.relic.relicId.contains("Bottled") || reward.relic.relicId.equals("War Paint") ||
+                        reward.relic.relicId.equals("Whetstone"))) {
+                    continue;
                 }
             }
             if(reward.type == RewardItem.RewardType.CARD || reward.type == RewardItem.RewardType.SAPPHIRE_KEY) {
                 continue;
             }
             if(reward.type == RewardItem.RewardType.POTION) {
+                if(countPotionSlot() == 0) {
+                    continue;
+                }
                 if(countPotionSlot() == 1) {
                     potions.add(reward);
                     continue;
@@ -179,11 +168,10 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
         }
     }
 
-    //This is used to prefix the IDs of various objects like cards and relics,
-    //to avoid conflicts between different mods using the same name for things.
     @Override
     public void receivePostUpdate() {
         if(!CardCrawlGame.isInARun() || !isPlayerInDungeon()) {
+            bossChestOpened = false;
             return;
         }
         try {
@@ -230,30 +218,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
         } else {
             cooldownLeft = settings.getAutoActionCooldown();
         }
-        //DebugRoomAndPhaseInfo();
-    }
-
-    private void DebugRoomAndPhaseInfo() {
-        if(prevPhase != currRoom.phase) {
-            logger.info("Phase: " + currRoom.phase);
-            prevPhase = currRoom.phase;
-        }
-        if(prevRoom != currRoom.getClass()) {
-            logger.info("Room: " + currRoom.getClass());
-            prevRoom = currRoom.getClass();
-        }
-        if(prevScreen != screen) {
-            logger.info("Screen : " + screen);
-            prevScreen = screen;
-        }
-        if(prevActionPhase != actionManager.phase) {
-            logger.info("ActionPhase : " + actionManager.phase);
-            prevActionPhase = actionManager.phase;
-        }
-        if(prevhasTakenAll != combatRewardScreen.hasTakenAll) {
-            logger.info("TakenAll : " + combatRewardScreen.hasTakenAll);
-            prevhasTakenAll = combatRewardScreen.hasTakenAll;
-        }
+        debugInfo.DebugRoomAndPhaseInfo();
     }
 
     private FailCode ClickEventButton() {
@@ -432,7 +397,8 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
     private FailCode ClickEndTurn() {
         if(!turnFullyBegun || actionManager.phase != GameActionManager.Phase.WAITING_ON_USER ||
             currRoom.phase != AbstractRoom.RoomPhase.COMBAT || actionManager.turnHasEnded ||
-            !actionManager.actions.isEmpty() || canUseAnyCard() || hasAnyPotions()) {
+            getMonsters().areMonstersBasicallyDead() || !actionManager.actions.isEmpty() || canUseAnyCard() ||
+            hasAnyPotions()) {
             return FailCode.Fail;
         }
         if(cooldownLeft > 0) {
@@ -448,19 +414,8 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
         turnFullyBegun = true;
     }
 
-    @Override
-    public void receivePostBattle(AbstractRoom abstractRoom) {
-        turnFullyBegun = false;
-    }
-
-    @Override
-    public void receivePostDeath() {
-        turnFullyBegun = false;
-    }
-
     public void receivePostInitialize() {
         settings.MakeSettingsUI();
-
     }
 
     @Override
@@ -469,9 +424,8 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
     }
 
     @Override
-    public void receivePreStartGame() {
+    public void receiveOnBattleStart(AbstractRoom abstractRoom) {
         turnFullyBegun = false;
-        bossChestOpened = false;
     }
 
     public enum FailCode {

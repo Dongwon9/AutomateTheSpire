@@ -40,7 +40,7 @@ public class SettingsMenu {
             defaults.put(EvenIfInShop, Boolean.toString(false));
             defaults.put(AutoClickEvent, Boolean.toString(true));
             defaults.put(AutoClickProceed, Boolean.toString(true));
-            defaults.put(AutoActionCooldown, Float.toString(0f));
+            defaults.put(AutoActionCooldown, Float.toString(0.1f));
             defaults.put("AutoTakeRelics", Boolean.toString(true));
             config = new SpireConfig("AutomateTheSpire", "Config", defaults);
         } catch (Exception e) {
@@ -173,6 +173,7 @@ public class SettingsMenu {
                     }
                 }
             });
+
         for (ModLabeledToggleButton b : buttons) {
             settingsPanel.addUIElement(b);
         }
