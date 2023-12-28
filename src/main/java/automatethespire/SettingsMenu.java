@@ -16,13 +16,13 @@ import static automatethespire.AutomateTheSpire.modID;
 import static com.megacrit.cardcrawl.core.CardCrawlGame.languagePack;
 
 public class SettingsMenu {
-    public static final String AutoEndTurn = "AutoEndTurn";
-    public static final String AutoOpenChest = "AutoOpenChest";
-    public static final String AutoClickMapNode = "AutoClickMapNode";
-    public static final String AutoTakeRewards = "AutoTakeRewards";
-    public static final String EvenIfRewardLeft = "EvenIfRewardLeft";
-    public static final String AutoClickEvent = "AutoClickEvent";
-    public static final String AutoClickProceed = "AutoClickProceed";
+    private final String AutoEndTurn = "AutoEndTurn";
+    private final String AutoOpenChest = "AutoOpenChest";
+    private final String AutoClickMapNode = "AutoClickMapNode";
+    private final String AutoTakeRewards = "AutoTakeRewards";
+    private final String EvenIfRewardLeft = "EvenIfRewardLeft";
+    private final String AutoClickEvent = "AutoClickEvent";
+    private final String AutoClickProceed = "AutoClickProceed";
     private final String EvenTheBottles = "EvenTheBottles";
     private final String EvenIfInShop = "EvenIfInShop";
     private final String AutoActionCooldown = "AutoActionCooldown";

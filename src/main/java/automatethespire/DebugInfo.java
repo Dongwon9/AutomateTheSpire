@@ -1,4 +1,4 @@
-package automatethespire.patches;
+package automatethespire;
 
 import automatethespire.AutomateTheSpire;
 import com.megacrit.cardcrawl.actions.GameActionManager;

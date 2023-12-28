@@ -1,6 +1,5 @@
 package automatethespire;
 
-import automatethespire.patches.DebugInfo;
 import automatethespire.patches.DungeonMapPatch;
 import automatethespire.patches.MapRoomNodeHoverPatch;
 import basemod.BaseMod;
@@ -21,6 +20,7 @@ import com.megacrit.cardcrawl.map.MapRoomNode;
 import com.megacrit.cardcrawl.neow.NeowRoom;
 import com.megacrit.cardcrawl.potions.AbstractPotion;
 import com.megacrit.cardcrawl.potions.PotionSlot;
+import com.megacrit.cardcrawl.relics.AbstractRelic;
 import com.megacrit.cardcrawl.rewards.RewardItem;
 import com.megacrit.cardcrawl.rewards.chests.AbstractChest;
 import com.megacrit.cardcrawl.rooms.*;
@@ -144,20 +144,15 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
                 continue;
             }
             if(reward.type == RewardItem.RewardType.POTION) {
-                if(countPotionSlot() == 0) {
-                    continue;
-                }
-                if(countPotionSlot() == 1) {
-                    potions.add(reward);
-                    continue;
-                }
+                potions.add(reward);
+                continue;
             }
             logger.info("Taking Reward : " + reward.type);
             reward.isDone = true;
             rewardTook = true;
             break;
         }
-        if(potions.size() == 1) {
+        if(!rewardTook && !potions.isEmpty() && potions.size() <= countPotionSlot() ) {
             potions.get(0).isDone = true;
             rewardTook = true;
         }
@@ -173,6 +168,11 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
         if(!CardCrawlGame.isInARun() || !isPlayerInDungeon()) {
             bossChestOpened = false;
             return;
+        }
+        for (AbstractRelic r : player.relics) {
+            if(!r.isDone) {
+                return;
+            }
         }
         try {
             currRoom = getCurrRoom();
@@ -218,7 +218,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
         } else {
             cooldownLeft = settings.getAutoActionCooldown();
         }
-        debugInfo.DebugRoomAndPhaseInfo();
+        //debugInfo.DebugRoomAndPhaseInfo();
     }
 
     private FailCode ClickEventButton() {
@@ -238,21 +238,11 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
         }
         prevButton = activeButtons.get(0);
         activeButtons.get(0).pressed = true;
-        logger.info("Pressed Event Option");
+        logger.info("Pressed Event Option: " + activeButtons.get(0).msg);
         return FailCode.Success;
     }
 
     private FailCode ClickMapNode() {
-        if(currRoom instanceof NeowRoom) {
-            if(currRoom.phase == AbstractRoom.RoomPhase.EVENT) {
-                proceedDelayLeft = 0.5f;
-            } else {
-                proceedDelayLeft -= Gdx.graphics.getDeltaTime();
-                if(proceedDelayLeft > 0) {
-                    return FailCode.Fail;
-                }
-            }
-        }
         if(screen != CurrentScreen.MAP) {
             mapNodePressed = false;
             return FailCode.Fail;
@@ -264,7 +254,6 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
         if(currRoom instanceof ShopRoom && !settings.isClickInShop()) {
             return FailCode.Fail;
         }
-
         if(currMapNode.y == 14 || (id.equals("TheEnding") && currMapNode.y == 2)) {
             DungeonMapPatch.doBossHover = true;
             return FailCode.Success;
@@ -314,15 +303,6 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
     }
 
     private FailCode ClickProceed() {
-        final float TreasureProceedDelay = 0.5f;
-
-        if(currRoom instanceof TreasureRoomBoss) {
-            if(!((TreasureRoomBoss) currRoom).chest.isOpen || !((TreasureRoomBoss) currRoom).choseRelic) {
-                proceedDelayLeft = TreasureProceedDelay;
-                return FailCode.Fail;
-            }
-
-        }
         if((boolean) ReflectionHacks.getPrivate(overlayMenu.proceedButton, ProceedButton.class, "isHidden")) {
             return FailCode.Fail;
         }
@@ -414,6 +394,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
         turnFullyBegun = true;
     }
 
+    @Override
     public void receivePostInitialize() {
         settings.MakeSettingsUI();
     }
