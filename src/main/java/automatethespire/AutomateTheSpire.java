@@ -4,7 +4,9 @@ import automatethespire.patches.DungeonMapPatch;
 import automatethespire.patches.MapRoomNodeHoverPatch;
 import basemod.BaseMod;
 import basemod.ReflectionHacks;
-import basemod.interfaces.*;
+import basemod.interfaces.EditStringsSubscriber;
+import basemod.interfaces.PostInitializeSubscriber;
+import basemod.interfaces.PostUpdateSubscriber;
 import com.badlogic.gdx.Gdx;
 import com.evacipated.cardcrawl.modthespire.Loader;
 import com.evacipated.cardcrawl.modthespire.ModInfo;
@@ -15,12 +17,13 @@ import com.megacrit.cardcrawl.actions.watcher.PressEndTurnButtonAction;
 import com.megacrit.cardcrawl.cards.AbstractCard;
 import com.megacrit.cardcrawl.core.CardCrawlGame;
 import com.megacrit.cardcrawl.dungeons.AbstractDungeon;
+import com.megacrit.cardcrawl.dungeons.TheEnding;
 import com.megacrit.cardcrawl.helpers.Hitbox;
 import com.megacrit.cardcrawl.map.MapRoomNode;
 import com.megacrit.cardcrawl.neow.NeowRoom;
 import com.megacrit.cardcrawl.potions.AbstractPotion;
 import com.megacrit.cardcrawl.potions.PotionSlot;
-import com.megacrit.cardcrawl.relics.AbstractRelic;
+import com.megacrit.cardcrawl.relics.*;
 import com.megacrit.cardcrawl.rewards.RewardItem;
 import com.megacrit.cardcrawl.rewards.chests.AbstractChest;
 import com.megacrit.cardcrawl.rooms.*;
@@ -35,8 +38,7 @@ import java.util.*;
 import static com.megacrit.cardcrawl.dungeons.AbstractDungeon.*;
 
 @SpireInitializer
-public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStartPostDrawSubscriber,
-    PostInitializeSubscriber, EditStringsSubscriber, OnStartBattleSubscriber {
+public class AutomateTheSpire implements PostUpdateSubscriber, PostInitializeSubscriber, EditStringsSubscriber {
 
     private static final String resourcesFolder = "automatethespire";
 
@@ -56,10 +58,8 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
     private final DebugInfo debugInfo;
     LargeDialogOptionButton prevButton;
     ArrayList<MapRoomNode> choices = null;
-    private boolean turnFullyBegun = false;
     private boolean bossChestOpened = false;
     private boolean mapNodePressed = false;
-    private float proceedDelayLeft = 0.1f;
 
     public AutomateTheSpire() {
         BaseMod.subscribe(this);
@@ -128,15 +128,12 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
         ArrayList<RewardItem> potions = new ArrayList<>();
         for (RewardItem reward : combatRewardScreen.rewards) {
             if(reward.type == RewardItem.RewardType.RELIC) {
-                if(reward.relicLink != null) {
-                    continue;
-                }
-                if(!settings.isAutoTakeRelics()) {
+                if(reward.relicLink != null || !settings.isAutoTakeRelics()) {
                     continue;
                 }
                 if(!settings.isEvenTheBottles() &&
-                    (reward.relic.relicId.contains("Bottled") || reward.relic.relicId.equals("War Paint") ||
-                        reward.relic.relicId.equals("Whetstone"))) {
+                    (reward.relic.relicId.contains("Bottled") || reward.relic.relicId.equals(WarPaint.ID) ||
+                        reward.relic.relicId.equals(Whetstone.ID))) {
                     continue;
                 }
             }
@@ -152,7 +149,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
             rewardTook = true;
             break;
         }
-        if(!rewardTook && !potions.isEmpty() && potions.size() <= countPotionSlot() ) {
+        if(!rewardTook && !potions.isEmpty() && potions.size() <= countPotionSlot()) {
             potions.get(0).isDone = true;
             rewardTook = true;
         }
@@ -211,12 +208,10 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
             success = success || code == FailCode.Success;
             cooldownFail = cooldownFail || code == FailCode.CooldownFail;
         }
-        if(success) {
+        if(success || !cooldownFail) {
             cooldownLeft = settings.getAutoActionCooldown();
-        } else if(cooldownFail) {
-            cooldownLeft -= Gdx.graphics.getDeltaTime();
         } else {
-            cooldownLeft = settings.getAutoActionCooldown();
+            cooldownLeft -= Gdx.graphics.getDeltaTime();
         }
         //debugInfo.DebugRoomAndPhaseInfo();
     }
@@ -233,9 +228,13 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
         if(activeButtons.size() != 1) {
             return FailCode.Fail;
         }
+        if(activeButtons.get(0) == prevButton) {
+            return FailCode.Fail;
+        }
         if(cooldownLeft > 0) {
             return FailCode.CooldownFail;
         }
+
         prevButton = activeButtons.get(0);
         activeButtons.get(0).pressed = true;
         logger.info("Pressed Event Option: " + activeButtons.get(0).msg);
@@ -254,7 +253,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
         if(currRoom instanceof ShopRoom && !settings.isClickInShop()) {
             return FailCode.Fail;
         }
-        if(currMapNode.y == 14 || (id.equals("TheEnding") && currMapNode.y == 2)) {
+        if(currMapNode.y == 14 || (id.equals(TheEnding.ID) && currMapNode.y == 2)) {
             DungeonMapPatch.doBossHover = true;
             return FailCode.Success;
         }
@@ -268,11 +267,11 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
         if(cooldownLeft > 0) {
             return FailCode.CooldownFail;
         }
-
         MapRoomNodeHoverPatch.hoverNode = choices.get(0);
         MapRoomNodeHoverPatch.doHover = true;
         dungeonMapScreen.clicked = true;
         mapNodePressed = true;
+        logger.info("Mapnode clicked : " + choices.get(0).getRoomSymbol(true));
         return FailCode.Success;
     }
 
@@ -285,7 +284,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
             chest = ((TreasureRoomBoss) getCurrRoom()).chest;
 
         }
-        if(currRoom instanceof TreasureRoom && !player.hasRelic("Cursed Key")) {
+        if(currRoom instanceof TreasureRoom && !player.hasRelic(CursedKey.ID)) {
             chest = ((TreasureRoom) getCurrRoom()).chest;
         }
         if(chest == null || chest.isOpen) {
@@ -299,6 +298,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
         }
         chest.isOpen = true;
         chest.open(false);
+        logger.info("Opened chest!");
         return FailCode.Success;
     }
 
@@ -316,17 +316,12 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
         if(screen != CurrentScreen.NONE && screen != CurrentScreen.COMBAT_REWARD) {
             return FailCode.Fail;
         }
-        if(currRoom instanceof TreasureRoomBoss) {
-            proceedDelayLeft -= Gdx.graphics.getDeltaTime();
-            if(proceedDelayLeft > 0) {
-                return FailCode.Fail;
-            }
-        }
         if(cooldownLeft > 0) {
             return FailCode.CooldownFail;
         }
         Hitbox hb = ReflectionHacks.getPrivate(overlayMenu.proceedButton, ProceedButton.class, "hb");
         hb.clicked = true;
+        logger.info("pressed proceed!");
         return FailCode.Success;
     }
 
@@ -336,9 +331,9 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
         while (var1.hasNext()) {
             c = var1.next();
             if(c.type == AbstractCard.CardType.STATUS && c.costForTurn < -1 &&
-                !AbstractDungeon.player.hasRelic("Medical Kit") ||
+                !AbstractDungeon.player.hasRelic(MedicalKit.ID) ||
                 c.type == AbstractCard.CardType.CURSE && c.costForTurn < -1 &&
-                    !AbstractDungeon.player.hasRelic("Blue Candle")) {
+                    !AbstractDungeon.player.hasRelic(BlueCandle.ID)) {
                 continue;
             }
             if(c.hasEnoughEnergy()) {
@@ -375,9 +370,8 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
     }
 
     private FailCode ClickEndTurn() {
-        if(!turnFullyBegun || actionManager.phase != GameActionManager.Phase.WAITING_ON_USER ||
-            currRoom.phase != AbstractRoom.RoomPhase.COMBAT || actionManager.turnHasEnded ||
-            getMonsters().areMonstersBasicallyDead() || !actionManager.actions.isEmpty() || canUseAnyCard() ||
+        if(!overlayMenu.endTurnButton.enabled || actionManager.phase != GameActionManager.Phase.WAITING_ON_USER ||
+            currRoom.phase != AbstractRoom.RoomPhase.COMBAT || !actionManager.actions.isEmpty() || canUseAnyCard() ||
             hasAnyPotions()) {
             return FailCode.Fail;
         }
@@ -385,13 +379,8 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
             return FailCode.CooldownFail;
         }
         actionManager.addToBottom(new PressEndTurnButtonAction());
-        turnFullyBegun = false;
+        logger.info("Turn Ended!");
         return FailCode.Success;
-    }
-
-    @Override
-    public void receiveOnPlayerTurnStartPostDraw() {
-        turnFullyBegun = true;
     }
 
     @Override
@@ -402,11 +391,6 @@ public class AutomateTheSpire implements PostUpdateSubscriber, OnPlayerTurnStart
     @Override
     public void receiveEditStrings() {
         localization.receiveEditStrings();
-    }
-
-    @Override
-    public void receiveOnBattleStart(AbstractRoom abstractRoom) {
-        turnFullyBegun = false;
     }
 
     public enum FailCode {

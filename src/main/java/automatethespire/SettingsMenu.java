@@ -26,6 +26,7 @@ public class SettingsMenu {
     private final String EvenTheBottles = "EvenTheBottles";
     private final String EvenIfInShop = "EvenIfInShop";
     private final String AutoActionCooldown = "AutoActionCooldown";
+    private final float minimumCooldown = 0.01f;
     public SpireConfig config;
 
     public SettingsMenu() {
@@ -40,7 +41,7 @@ public class SettingsMenu {
             defaults.put(EvenIfInShop, Boolean.toString(false));
             defaults.put(AutoClickEvent, Boolean.toString(true));
             defaults.put(AutoClickProceed, Boolean.toString(true));
-            defaults.put(AutoActionCooldown, Float.toString(0.1f));
+            defaults.put(AutoActionCooldown, Float.toString(0.2f));
             defaults.put("AutoTakeRelics", Boolean.toString(true));
             config = new SpireConfig("AutomateTheSpire", "Config", defaults);
         } catch (Exception e) {
@@ -162,7 +163,7 @@ public class SettingsMenu {
                 }
             })};
         ModMinMaxSlider slider =
-            new ModMinMaxSlider(languagePack.getUIString(modID + ":Settings").TEXT[8], 800.0F, 700.0F, 0.1f, 1f,
+            new ModMinMaxSlider(languagePack.getUIString(modID + ":Settings").TEXT[8], 800.0F, 700.0F, minimumCooldown, 1f,
                 getAutoActionCooldown(), "%.2fs", settingsPanel, s -> {
                 if(config != null) {
                     config.setFloat(AutoActionCooldown, s.getValue());
@@ -184,7 +185,7 @@ public class SettingsMenu {
     }
 
     public float getAutoActionCooldown() {
-        return config == null ? 0.1f : Math.max(config.getFloat(AutoActionCooldown), 0.1f);
+        return config == null ? minimumCooldown : Math.max(config.getFloat(AutoActionCooldown), minimumCooldown);
     }
 
     public boolean isAutoTakeRelics() {
