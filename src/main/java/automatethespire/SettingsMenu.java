@@ -43,6 +43,7 @@ public class SettingsMenu {
             defaults.put(AutoClickProceed, Boolean.toString(true));
             defaults.put(AutoActionCooldown, Float.toString(0.2f));
             defaults.put("AutoTakeRelics", Boolean.toString(true));
+            defaults.put("AutoClickMerchant", Boolean.toString(true));
             config = new SpireConfig("AutomateTheSpire", "Config", defaults);
         } catch (Exception e) {
             e.printStackTrace();
@@ -161,10 +162,21 @@ public class SettingsMenu {
                         e.printStackTrace();
                     }
                 }
+            }), new ModLabeledToggleButton(languagePack.getUIString(modID + ":Settings").TEXT[11], 800.0F, 650.0F,
+                Settings.CREAM_COLOR, FontHelper.charDescFont, isAutoClickMerchant(), settingsPanel, l -> {
+            }, button -> {
+                if(config != null) {
+                    config.setBool("AutoClickMerchant", button.enabled);
+                    try {
+                        config.save();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
             })};
         ModMinMaxSlider slider =
-            new ModMinMaxSlider(languagePack.getUIString(modID + ":Settings").TEXT[8], 800.0F, 700.0F, minimumCooldown, 1f,
-                getAutoActionCooldown(), "%.2fs", settingsPanel, s -> {
+            new ModMinMaxSlider(languagePack.getUIString(modID + ":Settings").TEXT[8], 800.0F, 700.0F, minimumCooldown,
+                1f, getAutoActionCooldown(), "%.2fs", settingsPanel, s -> {
                 if(config != null) {
                     config.setFloat(AutoActionCooldown, s.getValue());
                     try {
@@ -190,6 +202,10 @@ public class SettingsMenu {
 
     public boolean isAutoTakeRelics() {
         return config != null && config.getBool("AutoTakeRelics");
+    }
+
+    public boolean isAutoClickMerchant() {
+        return config != null && config.getBool("AutoClickMerchant");
     }
 
     public boolean isClickInShop() {

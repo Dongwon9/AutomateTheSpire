@@ -27,6 +27,7 @@ import com.megacrit.cardcrawl.relics.*;
 import com.megacrit.cardcrawl.rewards.RewardItem;
 import com.megacrit.cardcrawl.rewards.chests.AbstractChest;
 import com.megacrit.cardcrawl.rooms.*;
+import com.megacrit.cardcrawl.shop.Merchant;
 import com.megacrit.cardcrawl.ui.buttons.LargeDialogOptionButton;
 import com.megacrit.cardcrawl.ui.buttons.ProceedButton;
 import org.apache.logging.log4j.LogManager;
@@ -60,6 +61,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, PostInitializeSub
     ArrayList<MapRoomNode> choices = null;
     private boolean bossChestOpened = false;
     private boolean mapNodePressed = false;
+    private boolean merchantClicked = false;
 
     public AutomateTheSpire() {
         BaseMod.subscribe(this);
@@ -164,6 +166,7 @@ public class AutomateTheSpire implements PostUpdateSubscriber, PostInitializeSub
     public void receivePostUpdate() {
         if(!CardCrawlGame.isInARun() || !isPlayerInDungeon()) {
             bossChestOpened = false;
+            merchantClicked = false;
             return;
         }
         for (AbstractRelic r : player.relics) {
@@ -205,6 +208,11 @@ public class AutomateTheSpire implements PostUpdateSubscriber, PostInitializeSub
         }
         if(settings.isAutoOpenChest()) {
             code = OpenChest();
+            success = success || code == FailCode.Success;
+            cooldownFail = cooldownFail || code == FailCode.CooldownFail;
+        }
+        if(settings.isAutoClickMerchant()) {
+            code = ClickMerchant();
             success = success || code == FailCode.Success;
             cooldownFail = cooldownFail || code == FailCode.CooldownFail;
         }
@@ -272,6 +280,23 @@ public class AutomateTheSpire implements PostUpdateSubscriber, PostInitializeSub
         dungeonMapScreen.clicked = true;
         mapNodePressed = true;
         logger.info("Mapnode clicked : " + choices.get(0).getRoomSymbol(true));
+        return FailCode.Success;
+    }
+
+    private FailCode ClickMerchant() {
+        if(!(currRoom instanceof ShopRoom)) {
+            merchantClicked = false;
+            return FailCode.Fail;
+        }
+        if(merchantClicked) {
+            return FailCode.Fail;
+        }
+        if(cooldownLeft > 0) {
+            return FailCode.CooldownFail;
+        }
+        merchantClicked = true;
+        shopScreen.open();
+        AbstractDungeon.overlayMenu.proceedButton.setLabel(Merchant.NAMES[0]);
         return FailCode.Success;
     }
 

@@ -11,7 +11,8 @@
       "Automatically click proceed button",
       "Auto action delay",
       "Take Bottle relics, Whetstone and war paint",
-      "Also take relics"
+      "Also take relics",
+      "Automatically click merchant"
     ],
     "EXTRA_TEXT": [
       "This is another",
